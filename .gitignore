@@ -1,6 +1,5 @@
 yarn-error.log
 node_modules/
-contracts/
 .env
 
 node_modules
