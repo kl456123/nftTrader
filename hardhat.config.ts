@@ -49,7 +49,8 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         enabled: true,
-        url: `${process.env.MAINNET_URL}`,
+          url: `https://eth-mainnet.alchemyapi.io/v2/mgHwlYpgAvGEiR_RCgPiTfvT-yyJ6T03`,
+        // url: `${process.env.MAINNET_URL}`,
       },
       allowUnlimitedContractSize: true,
     },
