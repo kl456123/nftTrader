@@ -1891,10 +1891,10 @@ contract WyvernExchangeWithBulkCancellations is Exchange {
         ERC20 tokenAddress,
         address protocolFeeAddress
     ) public {
-        // registry = registryAddress;
-        // tokenTransferProxy = tokenTransferProxyAddress;
-        // exchangeToken = tokenAddress;
-        // protocolFeeRecipient = protocolFeeAddress;
+        registry = registryAddress;
+        tokenTransferProxy = tokenTransferProxyAddress;
+        exchangeToken = tokenAddress;
+        protocolFeeRecipient = protocolFeeAddress;
         owner = msg.sender;
     }
 }
