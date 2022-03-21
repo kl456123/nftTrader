@@ -1,0 +1,14 @@
+yarn-error.log
+node_modules/
+contracts/
+.env
+
+node_modules
+.env
+coverage
+coverage.json
+src/typechain
+
+#Hardhat files
+cache
+artifacts
