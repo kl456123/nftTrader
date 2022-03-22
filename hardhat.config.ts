@@ -49,14 +49,18 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         enabled: true,
-        // url: `https://eth-mainnet.alchemyapi.io/v2/mgHwlYpgAvGEiR_RCgPiTfvT-yyJ6T03`,
-        url: `${process.env.MAINNET_URL}`,
+        url: `https://eth-mainnet.alchemyapi.io/v2/mgHwlYpgAvGEiR_RCgPiTfvT-yyJ6T03`,
+        // url: `${process.env.MAINNET_URL}`,
       },
       allowUnlimitedContractSize: true,
     },
     ropsten: {
       url: process.env.ROPSTEN_URL || '',
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.ROPSTEN_PRIVATE_KEY !== undefined ? [process.env.ROPSTEN_PRIVATE_KEY] : [],
+    },
+    rinkeby: {
+      url: process.env.RINKEBY_URL || '',
+      accounts: process.env.RINKEBY_PRIVATE_KEY !== undefined ? [process.env.RINKEBY_PRIVATE_KEY] : [],
     },
     oec: {
       url: 'https://exchainrpc.okex.org',
@@ -66,7 +70,7 @@ const config: HardhatUserConfig = {
     oec_test: {
       url: 'https://exchaintestrpc.okex.org',
       chainId: 65,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.OEC_TEST_PRIVATE_KEY !== undefined ? [process.env.OEC_TEST_PRIVATE_KEY] : [],
     },
     bsc: {
       url: 'https://bsc-dataseed1.defibit.io',

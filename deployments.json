@@ -2,6 +2,7 @@
   "bsc_test": {
     "registryAddress": "0x70cbb871e8f30fc8ce23609e9e0ea87b6b222f58",
     "exchangeAddress": "0xd99cae3fac551f6b6ba7b9f19bdd316951eeee98",
+    "exchangeV2Address": "0x2c34a2fb1d0b4f55de51e1d0bdefaddce6b7cdd6",
     "tokenTransferProxyAddress": "0x68d6b739d2020067d1e2f713b999da97e4d54812",
     "tokenAddress": "0x100f3f74125c8c724c7c0ee81e4dd5626830dd9a",
     "nftAddress": "0xe9bbd6ec0c9ca71d3dccd1282ee9de4f811e50af"

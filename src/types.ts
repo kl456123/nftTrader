@@ -4,6 +4,10 @@ import { BigNumberish, BytesLike } from 'ethers'
 export enum Network {
   Main = 'main',
   Rinkeby = 'rinkeby',
+  OEC = 'OEC',
+  OEC_Test = 'OEC_Test',
+  BSC_Test = 'BSC_Test',
+  BSC = 'BSC',
 }
 
 export interface APIConfig {

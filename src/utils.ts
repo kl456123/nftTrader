@@ -2,16 +2,7 @@ import { Order, Asset, Network, ECSignature, OrderJSON, UnsignedOrder, OrderSide
 import { BigNumber } from 'bignumber.js'
 import { ContractsWrapper } from './contracts_wrapper'
 import { Interface, FunctionFragment } from '@ethersproject/abi'
-import {
-  NULL_ADDRESS,
-  MERKLE_VALIDATOR_MAINNET,
-  MERKLE_VALIDATOR_RINKEBY,
-  MAX_EXPIRATION_MONTHS,
-  MAX_DIGITS_IN_UNSIGNED_256_INT,
-  NULL_BYTES,
-  ATOMICIZER_MAINNET,
-  ATOMICIZER_RINKEBY,
-} from './constants'
+import { NULL_ADDRESS, MAX_EXPIRATION_MONTHS, MAX_DIGITS_IN_UNSIGNED_256_INT, NULL_BYTES } from './constants'
 import { passwdBook } from './passwd'
 import { ethers, utils } from 'ethers'
 import { TypedDataDomain, TypedDataField } from '@ethersproject/abstract-signer'
@@ -85,14 +76,48 @@ export function validateAndFormatWalletAddress(address: string) {
   return address.toLowerCase()
 }
 
-export const merkleValidatorByNetwork = {
-  [Network.Main]: MERKLE_VALIDATOR_MAINNET,
-  [Network.Rinkeby]: MERKLE_VALIDATOR_RINKEBY,
+export type AddressBook = {
+  mockNFT: string
+  mockToken: string
+  atomicizer: string
+  validator: string
+  registry: string
+  tokenTransferProxy: string
+  exchange: string
+  exchangev2: string
 }
 
-export const atomicizerByNetwork = {
-  [Network.Main]: ATOMICIZER_MAINNET,
-  [Network.Rinkeby]: ATOMICIZER_RINKEBY,
+export const addressesByNetwork: { [network in Network]?: AddressBook } = {
+  [Network.BSC_Test]: {
+    mockNFT: '0xC8A514128358498F26ccDDCc35926C0b16e153E3',
+    mockToken: '0x1daC23e41Fc8ce857E86fD8C1AE5b6121C67D96d',
+    atomicizer: '0x443EF018e182d409bcf7f794d409bCea4C73C2C7',
+    validator: '0x078b9259b4dc543eCa8F85A70d4635F403238D21',
+    registry: '0x6CEa74418A513C95D0efa4D75349Cb1f6ee7A335',
+    tokenTransferProxy: '',
+    exchange: '0xd99cae3fac551f6b6ba7b9f19bdd316951eeee98',
+    exchangev2: '0xb90b9A8e129D359F80F7b6fccf503B525e1B6455',
+  },
+  [Network.Main]: {
+    mockNFT: '',
+    mockToken: '',
+    atomicizer: '0xc99f70bfd82fb7c8f8191fdfbfb735606b15e5c5',
+    validator: '0xbaf2127b49fc93cbca6269fade0f7f31df4c88a7',
+    registry: '0xa5409ec958c83c3f309868babaca7c86dcb077c1',
+    tokenTransferProxy: '',
+    exchange: '',
+    exchangev2: '0x7f268357A8c2552623316e2562D90e642bB538E5',
+  },
+  [Network.Rinkeby]: {
+    mockNFT: '0x43BB99CC6EdfA45181295Cce4528F08f54C58aa4',
+    mockToken: '0x8b5947506A87276dD0c17f9c6cD3FAc5DD06Fba7',
+    atomicizer: '0x1d9D0D4f3C47187CD483b11E1556aEA838f0270d',
+    validator: '0x35411178dfF431Be291e95bF4925b9932AC07785',
+    registry: '0xEb3542517464701cD4d42B5bDC49c1cB21d83331',
+    tokenTransferProxy: '0xdb043586cc1a0a784329733f5caa39f2167d8c0f',
+    exchange: '',
+    exchangev2: '0x2d1FBe9075e01bB16dc4C5c209be8CEBb3db1eB1',
+  },
 }
 
 export const encodeCall = (abi: FunctionFragment, parameters: unknown[]) => {
@@ -132,7 +157,6 @@ export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boo
   if (abi.inputs.length !== replaceKind.length) {
     throw new Error(`replaceKind length is not matched with inputs! (${replaceKind.length}!=${abi.inputs.length})`)
   }
-  // 4 initial bytes of 0x00 for the method hash.
   const output: Buffer[] = []
   const data: Buffer[] = []
   const dynamicOffset = abi.inputs.reduce((len, { type }) => {
@@ -140,20 +164,20 @@ export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boo
     return len + (match ? parseInt(match[1], 10) * 32 : 32)
   }, 0)
   abi.inputs
-    .map(({ type, arrayLength }, ind) => ({
+    .map(({ arrayChildren, type, arrayLength }, ind) => ({
       bitmask: replaceKind[ind] ? 255 : 0,
-      type,
+      type: arrayChildren?arrayChildren.type:type,
       isDynamic: arrayLength === -1 ? true : false,
-      value: arrayLength !== null ? [] : generateDefaultValue(type),
+      value: generateDefaultValue(arrayChildren?arrayChildren.type:type),
     }))
     .reduce((offset, { bitmask, type, isDynamic, value }) => {
       // The 0xff bytes in the mask select the replacement bytes. All other bytes are
-      const cur = Buffer.alloc(utils.defaultAbiCoder.encode([type], [value]).length).fill(bitmask)
+      const cur = Buffer.alloc(utils.defaultAbiCoder.encode([type], [value]).length/2-1).fill(bitmask)
       if (isDynamic) {
         if (bitmask) {
           throw new Error('Replacement is not supported for dynamic parameters.')
         }
-        output.push(Buffer.alloc(utils.defaultAbiCoder.encode(['uint256'], [dynamicOffset]).length))
+        output.push(Buffer.alloc(utils.defaultAbiCoder.encode(['uint256'], [dynamicOffset]).length/2-1))
         data.push(cur)
         return offset + cur.length
       }
@@ -161,6 +185,7 @@ export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boo
       return offset
     }, dynamicOffset)
 
+  // 4 initial bytes of 0x00 for the method hash.
   const methodIdMask = Buffer.alloc(4)
   const mask = Buffer.concat([methodIdMask, Buffer.concat(output.concat(data))])
   return `0x${mask.toString('hex')}`
@@ -215,8 +240,7 @@ export const generatePseudoRandomSalt = () => {
   // Source: https://mikemcl.github.io/bignumber.js/#random
   const randomNumber = BigNumber.random(MAX_DIGITS_IN_UNSIGNED_256_INT)
   const factor = new BigNumber(10).pow(MAX_DIGITS_IN_UNSIGNED_256_INT - 1)
-  // const salt = randomNumber.times(factor)
-  const salt = new BigNumber(Math.floor(Math.random() * (9999999999 - 1000000)) + 1000000)
+  const salt = randomNumber.times(factor)
   return salt
 }
 
@@ -337,4 +361,8 @@ export const toBaseUnitAmount = (amount: BigNumber, decimals: number): BigNumber
     throw new Error(`Invalid unit amount: ${amount.toString()} - Too many decimal places`)
   }
   return baseUnitAmount
+}
+
+export async function delay(ms: number) {
+  return new Promise((res) => setTimeout(res, ms))
 }
