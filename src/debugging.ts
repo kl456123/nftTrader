@@ -2,6 +2,8 @@ import { WyvernExchangeWithBulkCancellations } from './typechain'
 import { Order, OrderSide } from './types'
 import { NULL_ADDRESS } from './constants'
 
+export const MAX_ERROR_LENGTH = 120
+
 function canSettleOrder(listingTime: number, expirationTime: number): boolean {
   const now = Math.round(Date.now() / 1000)
   return listingTime < now && (expirationTime === 0 || now < expirationTime)
@@ -128,8 +130,6 @@ export async function requireOrderCalldataCanMatch(
   client: WyvernExchangeWithBulkCancellations,
   { buy, sell }: { buy: Order; sell: Order }
 ) {
-    console.log('calldata:', buy.calldata, sell.calldata)
-    console.log('replacementPattern:', buy.replacementPattern, sell.replacementPattern)
   const result = await client.orderCalldataCanMatch(
     buy.calldata,
     buy.replacementPattern,

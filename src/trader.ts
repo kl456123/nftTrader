@@ -29,7 +29,7 @@ import {
   toBaseUnitAmount,
   delay,
 } from './utils'
-import { requireOrdersCanMatch, requireOrderCalldataCanMatch } from './debugging'
+import { requireOrdersCanMatch, requireOrderCalldataCanMatch, MAX_ERROR_LENGTH } from './debugging'
 import { passwdBook } from './passwd'
 import { providers, ethers } from 'ethers'
 import { BigNumber } from 'bignumber.js'
@@ -159,7 +159,7 @@ export class Trader {
     const schema = this.getSchema(SchemaName.ERC20)
     const tokenContract = new ethers.Contract(tokenAddress, schema.contractInterface, this.provider)
     const approved = await tokenContract.allowance(accountAddress, addressToApprove)
-    return new BigNumber(approved)
+    return new BigNumber(approved.toString())
   }
 
   public async approveFungibleToken({
@@ -188,7 +188,7 @@ export class Trader {
     const wallet = this.walletProvider.getSigner(accountAddress)
     const schema = this.getSchema(SchemaName.ERC20)
     const tokenContract = new ethers.Contract(tokenAddress, schema.contractInterface, this.provider)
-    const { hash } = await tokenContract.connect(wallet).approve(proxyAddress, MAX_UINT_256.toString())
+    const { hash } = await tokenContract.connect(wallet).approve(proxyAddress, MAX_UINT_256.toFixed(0))
     return hash
   }
 
@@ -736,6 +736,50 @@ export class Trader {
     }
   }
 
+  public async getAssetBalance(
+    { accountAddress, asset }: { accountAddress: string; asset: Asset },
+    retries = 1
+  ): Promise<BigNumber> {
+    const schema = this.getSchema(asset.schemaName)
+
+    // ERC20 or ERC1155 (non-Enjin)
+
+    const tokenContract = new ethers.Contract(asset.tokenAddress, schema.contractInterface, this.provider)
+
+    const count = await tokenContract.balanceOf(accountAddress)
+
+    return new BigNumber(count.toString())
+  }
+
+  /**
+   * Get the balance of a fungible token.
+   * Convenience method for getAssetBalance for fungibles
+   * @param param0 __namedParameters Object
+   * @param accountAddress Account address to check
+   * @param tokenAddress The address of the token to check balance for
+   * @param schemaName Optional schema name for the fungible token
+   * @param retries Number of times to retry if balance is undefined
+   */
+  public async getTokenBalance(
+    {
+      accountAddress,
+      tokenAddress,
+      schemaName = SchemaName.ERC20,
+    }: {
+      accountAddress: string
+      tokenAddress: string
+      schemaName?: SchemaName
+    },
+    retries = 1
+  ) {
+    const asset: Asset = {
+      tokenId: '',
+      tokenAddress,
+      schemaName,
+    }
+    return this.getAssetBalance({ accountAddress, asset }, retries)
+  }
+
   // Throws
   public async buyOrderValidationAndApprovals({
     order,
@@ -746,6 +790,37 @@ export class Trader {
     counterOrder?: Order
     accountAddress: string
   }) {
+    const tokenAddress = order.paymentToken
+
+    if (tokenAddress != NULL_ADDRESS) {
+      const balance = await this.getTokenBalance({
+        accountAddress,
+        tokenAddress,
+      })
+
+      /* NOTE: no buy-side auctions for now, so sell.saleKind === 0 */
+      let minimumAmount = new BigNumber(order.basePrice)
+      if (counterOrder) {
+        minimumAmount = await this.getRequiredAmountForTakingSellOrder(counterOrder)
+      }
+
+      // Check WETH balance
+      if (balance.toNumber() < minimumAmount.toNumber()) {
+        throw new Error('Insufficient balance.')
+      }
+
+      const tokenTransferProxyAddress = this.contractsWrapper.tokenTransferProxy.address
+
+      // Check token approval
+      // This can be done at a higher level to show UI
+      await this.approveFungibleToken({
+        accountAddress,
+        tokenAddress,
+        minimumAmount,
+        proxyAddress: tokenTransferProxyAddress,
+      })
+    }
+
     // Check order formation
     const buyValid = await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrderParameters_(
       [
@@ -831,18 +906,12 @@ export class Trader {
           )
         }
       }
-      const canMatch = await requireOrdersCanMatch(this.contractsWrapper.wyvernExchangeBulkCancellations, {
+      await requireOrdersCanMatch(this.contractsWrapper.wyvernExchangeBulkCancellations, {
         buy,
         sell,
         accountAddress,
       })
-      this.logger.info(`Orders matching: ${canMatch}`)
-
-      const calldataCanMatch = await requireOrderCalldataCanMatch(
-        this.contractsWrapper.wyvernExchangeBulkCancellations,
-        { buy, sell }
-      )
-      this.logger.info(`Order calldata matching: ${calldataCanMatch}`)
+      await requireOrderCalldataCanMatch(this.contractsWrapper.wyvernExchangeBulkCancellations, { buy, sell })
 
       return true
     } catch (error) {
@@ -894,50 +963,62 @@ export class Trader {
 
     return isValid
   }
+  public async fulfillOrders({
+    orders,
+    accountAddress,
+    recipientAddress,
+    referrerAddress,
+  }: {
+    orders: Order[]
+    accountAddress: string
+    recipientAddress?: string
+    referrerAddress?: string
+  }) {
+    const orderPairs = orders.map((order) => {
+      const matchingOrder = this.makeMatchingOrder({
+        order,
+        accountAddress: this.contractsWrapper.multicall.address, // use multicall address as accountAddress
+        recipientAddress: recipientAddress || accountAddress,
+      })
+      const { buy, sell } = assignOrdersToSides(order, matchingOrder)
+      const metadata = this.getMetadata(order, referrerAddress)
+      return { buy, sell, metadata }
+    })
 
-  private async atomicMatch({
+    const calls: { target: string; callData: string }[] = orderPairs.map(({ buy, sell, metadata }) => {
+      const args = this.encodeAtomicMatchParameters({ buy, sell, metadata })
+      const callData = this.contractsWrapper.wyvernExchangeBulkCancellations.interface.encodeFunctionData(
+        'atomicMatch_',
+        [args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10]]
+      )
+      return { target: this.contractsWrapper.wyvernExchangeBulkCancellations.address, callData }
+    })
+    const values = await Promise.all(
+      orderPairs.map(async ({ buy, sell }) => {
+        if (buy.paymentToken == NULL_ADDRESS) {
+          return await this.getRequiredAmountForTakingSellOrder(sell)
+        }
+        return new BigNumber(0)
+      })
+    )
+    const value = values.reduce((res, value) => res.plus(value), new BigNumber(0))
+
+    const txnData = { from: accountAddress, value: value.toString() }
+    const wallet = this.walletProvider.getSigner(accountAddress)
+    const transactionHash = await this.contractsWrapper.multicall.connect(wallet).aggregate(calls, txnData)
+
+    return transactionHash
+  }
+
+  private encodeAtomicMatchParameters({
     buy,
     sell,
-    accountAddress,
     metadata = NULL_BLOCK_HASH,
   }: {
     buy: Order
     sell: Order
-    accountAddress: string
     metadata?: string
   }) {
-    let value
-    let shouldValidateBuy = true
-    let shouldValidateSell = true
-    if (sell.maker.toLowerCase() == accountAddress.toLowerCase()) {
-      // USER IS THE SELLER, only validate the buy order
-      await this.sellOrderValidationAndApprovals({
-        order: sell,
-        accountAddress,
-      })
-      shouldValidateSell = false
-    } else if (buy.maker.toLowerCase() == accountAddress.toLowerCase()) {
-      // USER IS THE BUYER, only validate the sell order
-      await this.buyOrderValidationAndApprovals({ order: buy, counterOrder: sell, accountAddress })
-      // If using ETH to pay, set the value of the transaction to the current price
-      if (buy.paymentToken == NULL_ADDRESS) {
-        value = await this.getRequiredAmountForTakingSellOrder(sell)
-      }
-      shouldValidateBuy = false
-    } else {
-      // User is neither - matching service
-    }
-
-    await this.validateMatch({
-      buy,
-      sell,
-      accountAddress,
-      shouldValidateBuy,
-      shouldValidateSell,
-    })
-    let txHash
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const txnData: any = { from: accountAddress, value }
     const args: AtomicMatchParameters = [
       [
         buy.exchange,
@@ -991,6 +1072,53 @@ export class Trader {
         metadata,
       ],
     ]
+    return args
+  }
+
+  private async atomicMatch({
+    buy,
+    sell,
+    accountAddress,
+    metadata = NULL_BLOCK_HASH,
+  }: {
+    buy: Order
+    sell: Order
+    accountAddress: string
+    metadata?: string
+  }) {
+    let value = new BigNumber(0)
+    let shouldValidateBuy = true
+    let shouldValidateSell = true
+    if (sell.maker.toLowerCase() == accountAddress.toLowerCase()) {
+      // USER IS THE SELLER, only validate the buy order
+      await this.sellOrderValidationAndApprovals({
+        order: sell,
+        accountAddress,
+      })
+      shouldValidateSell = false
+    } else if (buy.maker.toLowerCase() == accountAddress.toLowerCase()) {
+      // USER IS THE BUYER, only validate the sell order
+      await this.buyOrderValidationAndApprovals({ order: buy, counterOrder: sell, accountAddress })
+      // If using ETH to pay, set the value of the transaction to the current price
+      if (buy.paymentToken == NULL_ADDRESS) {
+        value = await this.getRequiredAmountForTakingSellOrder(sell)
+      }
+      shouldValidateBuy = false
+    } else {
+      // User is neither - matching service
+    }
+
+    await this.validateMatch({
+      buy,
+      sell,
+      accountAddress,
+      shouldValidateBuy,
+      shouldValidateSell,
+    })
+    let txHash
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const txnData: any = { from: accountAddress, value: value.toString() }
+    const args = this.encodeAtomicMatchParameters({ buy, sell, metadata })
 
     // Estimate gas first
     try {
@@ -1014,10 +1142,8 @@ export class Trader {
     } catch (error) {
       console.error(`Failed atomic match with args: `, args, error)
       throw new Error(
-        `Oops, the Ethereum network rejected this transaction :( The OpenSea devs have been alerted, but this problem is typically due an item being locked or untransferrable. The exact error was "$
-          error instanceof Error
-            ? error.message.substr(0, MAX_ERROR_LENGTH)
-            : "unknown"
+        `Oops, the Ethereum network rejected this transaction :( The OpenSea devs have been alerted, but this problem is typically due an item being locked or untransferrable. The exact error was "${
+          error instanceof Error ? error.message.substr(0, MAX_ERROR_LENGTH) : 'unknown'
         }..."`
       )
     }
@@ -1085,7 +1211,7 @@ export class Trader {
     sell.takerRelayerFee = new BigNumber(sell.takerRelayerFee)
     const feePercentage = sell.takerRelayerFee.div(INVERSE_BASIS_POINT)
     const fee = feePercentage.times(exactPrice)
-    return fee.plus(exactPrice).integerValue(BigNumber.ROUND_CEIL).toString()
+    return fee.plus(exactPrice).integerValue(BigNumber.ROUND_CEIL)
   }
 
   public makeMatchingOrder({

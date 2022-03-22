@@ -85,6 +85,7 @@ export type AddressBook = {
   tokenTransferProxy: string
   exchange: string
   exchangev2: string
+  multicall: string
 }
 
 export const addressesByNetwork: { [network in Network]?: AddressBook } = {
@@ -97,6 +98,7 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     tokenTransferProxy: '',
     exchange: '0xd99cae3fac551f6b6ba7b9f19bdd316951eeee98',
     exchangev2: '0xb90b9A8e129D359F80F7b6fccf503B525e1B6455',
+    multicall: '',
   },
   [Network.Main]: {
     mockNFT: '',
@@ -107,6 +109,7 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     tokenTransferProxy: '',
     exchange: '',
     exchangev2: '0x7f268357A8c2552623316e2562D90e642bB538E5',
+    multicall: '0xeefba1e63905ef1d7acba5a8513c70307c1ce441',
   },
   [Network.Rinkeby]: {
     mockNFT: '0x43BB99CC6EdfA45181295Cce4528F08f54C58aa4',
@@ -117,6 +120,7 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     tokenTransferProxy: '0xdb043586cc1a0a784329733f5caa39f2167d8c0f',
     exchange: '',
     exchangev2: '0x2d1FBe9075e01bB16dc4C5c209be8CEBb3db1eB1',
+    multicall: '0x42ad527de7d4e9d9d011ac45b31d8551f8fe9821',
   },
 }
 
@@ -166,18 +170,18 @@ export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boo
   abi.inputs
     .map(({ arrayChildren, type, arrayLength }, ind) => ({
       bitmask: replaceKind[ind] ? 255 : 0,
-      type: arrayChildren?arrayChildren.type:type,
+      type: arrayChildren ? arrayChildren.type : type,
       isDynamic: arrayLength === -1 ? true : false,
-      value: generateDefaultValue(arrayChildren?arrayChildren.type:type),
+      value: generateDefaultValue(arrayChildren ? arrayChildren.type : type),
     }))
     .reduce((offset, { bitmask, type, isDynamic, value }) => {
       // The 0xff bytes in the mask select the replacement bytes. All other bytes are
-      const cur = Buffer.alloc(utils.defaultAbiCoder.encode([type], [value]).length/2-1).fill(bitmask)
+      const cur = Buffer.alloc(utils.defaultAbiCoder.encode([type], [value]).length / 2 - 1).fill(bitmask)
       if (isDynamic) {
         if (bitmask) {
           throw new Error('Replacement is not supported for dynamic parameters.')
         }
-        output.push(Buffer.alloc(utils.defaultAbiCoder.encode(['uint256'], [dynamicOffset]).length/2-1))
+        output.push(Buffer.alloc(utils.defaultAbiCoder.encode(['uint256'], [dynamicOffset]).length / 2 - 1))
         data.push(cur)
         return offset + cur.length
       }
