@@ -123,6 +123,19 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     multicall: '0x42ad527de7d4e9d9d011ac45b31d8551f8fe9821',
   },
 }
+export type AggregatorAddresses = {
+  converter: string
+  marketRegistry: string
+  gemSwap: string
+}
+
+export const aggregatorByNetwork: { [network in Network]?: AggregatorAddresses } = {
+  [Network.Rinkeby]: {
+    converter: '0x24C54C8d88eab1b13B6352b07789a5b12a2Fd7c0',
+    marketRegistry: '0xf94640CF21F5f3930ed1fE9d730bD8c85102EA62',
+    gemSwap: '0xCC10A64d6ADfa9d55291bD9ddd2510e11Ce3274A',
+  },
+}
 
 export const encodeCall = (abi: FunctionFragment, parameters: unknown[]) => {
   return utils.hexlify(utils.concat([Interface.getSighash(abi), utils.defaultAbiCoder.encode(abi.inputs, parameters)]))
