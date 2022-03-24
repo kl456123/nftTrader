@@ -36,6 +36,7 @@ import { BigNumber } from 'bignumber.js'
 import { API } from './api'
 import { ContractsWrapper } from './contracts_wrapper'
 import { Logger, logger as defaultLogger } from './logger'
+import { ERC20__factory } from './typechain'
 import {
   DEFAULT_BUYER_FEE_BASIS_POINTS,
   DEFAULT_SELLER_FEE_BASIS_POINTS,
@@ -51,9 +52,16 @@ import {
   INVERSE_BASIS_POINT,
   NULL_BLOCK_HASH,
   DEFAULT_GAS_INCREASE_FACTOR,
+  WETH_ADDRESS,
+  ETH_ADDRESS,
 } from './constants'
 
 const MAX_UINT_256 = new BigNumber(2).pow(256).minus(1)
+
+type Payment = {
+  paymentToken: string
+  amount: BigNumber
+}
 
 export class Trader {
   public readonly api: API
@@ -613,7 +621,12 @@ export class Trader {
       throw new Error('Expiration time must be set if order will change in price.')
     }
 
-    const decimals = 18
+    // ERC20 or ERC1155 (non-Enjin)
+    let decimals = 18
+    if (!isEther) {
+      const tokenContract = ERC20__factory.connect(tokenAddress, this.provider)
+      decimals = await tokenContract.decimals()
+    }
     const basePrice = toBaseUnitAmount(new BigNumber(startAmount), decimals)
     const extra = new BigNumber(priceDiff)
     return { basePrice, extra, paymentToken }
@@ -963,13 +976,68 @@ export class Trader {
 
     return isValid
   }
+  public getConverstionDetails(
+    takerPayments: Record<string, BigNumber>,
+    requiredPayments: Record<string, BigNumber>
+  ): { conversionData: string }[] {
+    let surplusWETH = new BigNumber(0)
+    const calldatas: string[] = []
+    Object.entries(requiredPayments).forEach(([paymentToken, amount]) => {
+      let takerAmount = new BigNumber(0)
+      if (paymentToken in takerPayments) {
+        takerAmount = takerPayments[paymentToken]
+      }
+
+      if (amount.gt(takerAmount)) {
+        // not enough
+        const diff = amount.minus(takerAmount)
+        let inputAmount = diff
+        if (paymentToken === ETH_ADDRESS) {
+          calldatas.push(
+            this.contractsWrapper.conveter.encodeFunctionData('wethToEth', [WETH_ADDRESS, diff.toString()])
+          )
+        } else {
+          inputAmount = diff
+          if (paymentToken !== WETH_ADDRESS) {
+            //TODO weth=>paymentToken
+          }
+        }
+        surplusWETH = surplusWETH.minus(inputAmount)
+      } else if (amount.lt(takerAmount)) {
+        const diff = takerAmount.minus(amount)
+        let outputAmount = diff
+        // convert any surplus to weth
+        if (paymentToken === ETH_ADDRESS) {
+          calldatas.push(
+            this.contractsWrapper.conveter.encodeFunctionData('ethToWeth', [WETH_ADDRESS, diff.toString()])
+          )
+        } else {
+          outputAmount = diff
+          if (paymentToken !== WETH_ADDRESS) {
+            // TODO paymentToken=> weth
+          }
+        }
+        surplusWETH = surplusWETH.plus(outputAmount)
+      } else {
+        // do nothing
+      }
+    })
+    if (surplusWETH.lt(0)) {
+      throw new Error(`not enough payments for fulfill orders, need more ${surplusWETH.abs()} wei`)
+    }
+    const converstionDetails = calldatas.map((calldata) => ({ conversionData: calldata }))
+    return converstionDetails
+  }
+
   public async fulfillOrders({
     orders,
+    payments,
     accountAddress,
     recipientAddress,
     referrerAddress,
   }: {
     orders: Order[]
+    payments: { paymentToken: string; amount: number }[]
     accountAddress: string
     recipientAddress?: string
     referrerAddress?: string
@@ -977,7 +1045,7 @@ export class Trader {
     const orderPairs = orders.map((order) => {
       const matchingOrder = this.makeMatchingOrder({
         order,
-        accountAddress: this.contractsWrapper.multicall.address, // use multicall address as accountAddress
+        accountAddress: this.contractsWrapper.gemSwap.address, // use multicall address as accountAddress
         recipientAddress: recipientAddress || accountAddress,
       })
       const { buy, sell } = assignOrdersToSides(order, matchingOrder)
@@ -985,27 +1053,97 @@ export class Trader {
       return { buy, sell, metadata }
     })
 
-    const calls: { target: string; callData: string }[] = orderPairs.map(({ buy, sell, metadata }) => {
+    const callDatas = orderPairs.map(({ buy, sell, metadata }) => {
       const args = this.encodeAtomicMatchParameters({ buy, sell, metadata })
       const callData = this.contractsWrapper.wyvernExchangeBulkCancellations.interface.encodeFunctionData(
         'atomicMatch_',
         [args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10]]
       )
-      return { target: this.contractsWrapper.wyvernExchangeBulkCancellations.address, callData }
+      return callData
     })
-    const values = await Promise.all(
-      orderPairs.map(async ({ buy, sell }) => {
-        if (buy.paymentToken == NULL_ADDRESS) {
-          return await this.getRequiredAmountForTakingSellOrder(sell)
-        }
-        return new BigNumber(0)
+
+    const requiredPayments: Record<string, BigNumber> = {}
+    const values = []
+    for (const { buy, sell } of orderPairs) {
+      const amount = await this.getRequiredAmountForTakingSellOrder(sell)
+      // lowercase
+      const paymentToken = buy.paymentToken.toLowerCase()
+      if (paymentToken in requiredPayments) {
+        requiredPayments[paymentToken].plus(amount)
+      } else {
+        requiredPayments[paymentToken] = amount
+      }
+      if (paymentToken === ETH_ADDRESS) {
+        values.push(amount)
+      } else {
+        values.push(new BigNumber(0))
+      }
+    }
+
+    const erc721Details: { tokenAddr: string; to: string[]; ids: number[] }[] = []
+    const erc1155Details: {
+      tokenAddr: string
+      ids: number[]
+      amounts: string[]
+    }[] = []
+    const erc20Details: { tokenAddrs: string[]; amounts: string[] } = { tokenAddrs: [], amounts: [] }
+    const dustTokens: string[] = []
+
+    // no txns, just eth_call
+    const decimals = await Promise.all(
+      payments.map(({ paymentToken }) => {
+        return paymentToken === ETH_ADDRESS ? 18 : ERC20__factory.connect(paymentToken, this.provider).decimals()
       })
     )
-    const value = values.reduce((res, value) => res.plus(value), new BigNumber(0))
 
+    const takerPayments: Record<string, BigNumber> = {}
+    payments.forEach((payment, ind) => {
+      const amount = toBaseUnitAmount(new BigNumber(payment.amount), decimals[ind])
+      if (payment.paymentToken !== ETH_ADDRESS) {
+        erc20Details.amounts.push(amount.toString())
+        erc20Details.tokenAddrs.push(payment.paymentToken)
+        dustTokens.push(payment.paymentToken)
+      }
+      let amount_big = new BigNumber(0)
+      const paymentToken = payment.paymentToken.toLowerCase()
+      if (paymentToken in takerPayments) {
+        amount_big = takerPayments[paymentToken]
+      }
+      takerPayments[paymentToken] = amount_big.plus(amount)
+    })
+    const converstionDetails: { conversionData: string }[] = this.getConverstionDetails(takerPayments, requiredPayments)
+    // const converstionDetails: { conversionData: string }[] = []
+    const tradeDetails = values.map((value, ind) => ({
+      marketId: 0,
+      value: value.toString(),
+      tradeData: callDatas[ind],
+    }))
+
+    for (let ind = 0; ind < erc20Details.tokenAddrs.length; ++ind) {
+      // Check token approval
+      await this.approveFungibleToken({
+        accountAddress,
+        tokenAddress: erc20Details.tokenAddrs[ind],
+        minimumAmount: new BigNumber(erc20Details.amounts[ind]),
+        proxyAddress: this.contractsWrapper.gemSwap.address,
+      })
+    }
+
+    // only send specified valut to aggregator contract
+    const value = takerPayments[ETH_ADDRESS] ?? new BigNumber(0)
     const txnData = { from: accountAddress, value: value.toString() }
     const wallet = this.walletProvider.getSigner(accountAddress)
-    const transactionHash = await this.contractsWrapper.multicall.connect(wallet).aggregate(calls, txnData)
+    const transactionHash = await this.contractsWrapper.gemSwap
+      .connect(wallet)
+      .multiAssetSwap(
+        erc20Details,
+        erc721Details,
+        erc1155Details,
+        converstionDetails,
+        tradeDetails,
+        dustTokens,
+        txnData
+      )
 
     return transactionHash
   }

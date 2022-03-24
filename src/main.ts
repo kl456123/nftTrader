@@ -4,6 +4,7 @@ import { ethers } from 'ethers'
 import * as dotenv from 'dotenv'
 import { MockNFT__factory } from './typechain'
 import { WalletProvider } from './wallet_provider'
+import { WETH_ADDRESS, ETH_ADDRESS } from './constants'
 
 dotenv.config()
 
@@ -18,11 +19,14 @@ async function initEnv(nftAddress: string, tokenId: number, signer: ethers.Signe
 
 async function fulfillOrders(trader: Trader, deployer: ethers.Signer, seller: string, buyer: string) {
   const NFT_CONTRACT_ADDRESS = '0x43BB99CC6EdfA45181295Cce4528F08f54C58aa4'
+  const mockTokenAddress = '0x8b5947506A87276dD0c17f9c6cD3FAc5DD06Fba7'
   const expirationTime = Math.round(Date.now() / 1000 + 60 * 60 * 24) // one day
-  const NFT_TOKEN_IDS = [2, 3]
+  const NFT_TOKEN_IDS = [12, 13]
   const sellOrders = []
-  for (const nftId of NFT_TOKEN_IDS) {
-    await initEnv(NFT_CONTRACT_ADDRESS, nftId, deployer, seller)
+  const paymentTokenAddresses = [ETH_ADDRESS, WETH_ADDRESS] // weth and eth
+  for (let i = 0; i < NFT_TOKEN_IDS.length; ++i) {
+    const nftId = NFT_TOKEN_IDS[i]
+    // await initEnv(NFT_CONTRACT_ADDRESS, nftId, deployer, seller)
     const asset: Asset = {
       tokenId: nftId.toString(),
       tokenAddress: NFT_CONTRACT_ADDRESS,
@@ -31,12 +35,17 @@ async function fulfillOrders(trader: Trader, deployer: ethers.Signer, seller: st
     const sellOrder = await trader.createSellOrder({
       asset,
       startAmount: 0.01,
+      paymentTokenAddress: paymentTokenAddresses[i],
       expirationTime,
       accountAddress: seller,
     })
     sellOrders.push(sellOrder)
   }
-  const txHash = await trader.fulfillOrders({ orders: sellOrders, accountAddress: buyer })
+  const txHash = await trader.fulfillOrders({
+    orders: sellOrders,
+    payments: [{ paymentToken: ETH_ADDRESS, amount: 0.02 }],
+    accountAddress: buyer,
+  })
 }
 
 async function fulfillOrder(trader: Trader, deployer: ethers.Signer, seller: string, buyer: string) {
@@ -50,7 +59,7 @@ async function fulfillOrder(trader: Trader, deployer: ethers.Signer, seller: str
     tokenAddress: NFT_CONTRACT_ADDRESS,
     schemaName: SchemaName.ERC721,
   }
-  const paymentTokenAddress = '0xc778417E063141139Fce010982780140Aa0cD5Ab' // weth
+  const paymentTokenAddress = WETH_ADDRESS // weth
   const sellOrder = await trader.createSellOrder({
     asset,
     startAmount: 0.01,
@@ -76,8 +85,8 @@ async function main() {
   const trader = new Trader(walletProvider, { networkName: Network.Rinkeby })
 
   // test
-  // await fulfillOrders(trader, deployer, seller, buyer)
-  await fulfillOrder(trader, deployer, seller, buyer)
+  await fulfillOrders(trader, deployer, seller, buyer)
+  // await fulfillOrder(trader, deployer, seller, buyer)
 }
 
 main().catch(console.error)

@@ -7,6 +7,7 @@
     "@typechain/hardhat": "^2.3.1",
     "@types/bunyan": "^1.8.8",
     "@types/chai": "^4.2.22",
+    "@types/lodash": "^4.14.180",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.11.1",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
@@ -37,7 +38,8 @@
     "@openzeppelin/contracts": "^4.5.0",
     "axios": "^0.26.1",
     "bignumber.js": "^9.0.2",
-    "bunyan": "^1.8.15"
+    "bunyan": "^1.8.15",
+    "lodash": "^4.17.21"
   },
   "scripts": {
     "test": "mocha",

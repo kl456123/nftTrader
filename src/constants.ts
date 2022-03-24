@@ -60,3 +60,6 @@ export const EIP_712_ORDER_TYPES = {
     { name: 'nonce', type: 'uint256' },
   ],
 }
+
+export const WETH_ADDRESS = '0xc778417E063141139Fce010982780140Aa0cD5Ab'
+export const ETH_ADDRESS = NULL_ADDRESS

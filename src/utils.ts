@@ -86,6 +86,7 @@ export type AddressBook = {
   exchange: string
   exchangev2: string
   multicall: string
+  weth9: string
 }
 
 export const addressesByNetwork: { [network in Network]?: AddressBook } = {
@@ -99,6 +100,7 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     exchange: '0xd99cae3fac551f6b6ba7b9f19bdd316951eeee98',
     exchangev2: '0xb90b9A8e129D359F80F7b6fccf503B525e1B6455',
     multicall: '',
+    weth9: '',
   },
   [Network.Main]: {
     mockNFT: '',
@@ -110,6 +112,7 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     exchange: '',
     exchangev2: '0x7f268357A8c2552623316e2562D90e642bB538E5',
     multicall: '0xeefba1e63905ef1d7acba5a8513c70307c1ce441',
+    weth9: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
   },
   [Network.Rinkeby]: {
     mockNFT: '0x43BB99CC6EdfA45181295Cce4528F08f54C58aa4',
@@ -121,6 +124,7 @@ export const addressesByNetwork: { [network in Network]?: AddressBook } = {
     exchange: '',
     exchangev2: '0x2d1FBe9075e01bB16dc4C5c209be8CEBb3db1eB1',
     multicall: '0x42ad527de7d4e9d9d011ac45b31d8551f8fe9821',
+    weth9: '0xc778417E063141139Fce010982780140Aa0cD5Ab',
   },
 }
 export type AggregatorAddresses = {
