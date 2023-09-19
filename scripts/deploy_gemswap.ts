@@ -24,13 +24,17 @@ async function main() {
   // // use deployer as guardian
   const guardian = deployer.address
   const GemSwap = await ethers.getContractFactory('GemSwap')
-  const gemSwap = await GemSwap.deploy(marketRegistry.address, converter.address, guardian)
+  const gemSwap = await GemSwap.deploy(
+    marketRegistry.address,
+    converter.address,
+    guardian
+  )
   await gemSwap.deployed()
 
   console.log('GemSwap deployed to:', gemSwap.address)
-    // used for verify contracts
-    const marketRegistryAddress = marketRegistry.address
-    const converterAddress = converter.address
+  // used for verify contracts
+  const marketRegistryAddress = marketRegistry.address
+  const converterAddress = converter.address
   console.log(
     'abi encoded constructor arguments:',
     ethers.utils.defaultAbiCoder.encode(
@@ -49,7 +53,12 @@ async function main() {
   const nonce = await deployer.getTransactionCount()
   await Promise.all(
     paymentTokens.map((token, ind) =>
-      gemSwap.setOneTimeApproval(token, tokenTransferProxy, ethers.constants.MaxUint256, { nonce: nonce + ind })
+      gemSwap.setOneTimeApproval(
+        token,
+        tokenTransferProxy,
+        ethers.constants.MaxUint256,
+        { nonce: nonce + ind }
+      )
     )
   )
 }

@@ -159,7 +159,11 @@ contract MerkleValidator {
     /// @param a The first element included in the hash.
     /// @param b The second element included in the hash.
     /// @return value The resultant hash of the two bytes32 elements.
-    function _efficientHash(bytes32 a, bytes32 b) private pure returns (bytes32 value) {
+    function _efficientHash(bytes32 a, bytes32 b)
+        private
+        pure
+        returns (bytes32 value)
+    {
         assembly {
             mstore(0x00, a)
             mstore(0x20, b)

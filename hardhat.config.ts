@@ -56,31 +56,43 @@ const config: HardhatUserConfig = {
     },
     ropsten: {
       url: process.env.ROPSTEN_URL || '',
-      accounts: process.env.ROPSTEN_PRIVATE_KEY !== undefined ? [process.env.ROPSTEN_PRIVATE_KEY] : [],
+      accounts:
+        process.env.ROPSTEN_PRIVATE_KEY !== undefined
+          ? [process.env.ROPSTEN_PRIVATE_KEY]
+          : [],
     },
     rinkeby: {
       url: process.env.RINKEBY_URL || '',
-      accounts: process.env.RINKEBY_PRIVATE_KEY !== undefined ? [process.env.RINKEBY_PRIVATE_KEY] : [],
+      accounts:
+        process.env.RINKEBY_PRIVATE_KEY !== undefined
+          ? [process.env.RINKEBY_PRIVATE_KEY]
+          : [],
     },
     oec: {
       url: 'https://exchainrpc.okex.org',
       chainId: 66,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     oec_test: {
       url: 'https://exchaintestrpc.okex.org',
       chainId: 65,
-      accounts: process.env.OEC_TEST_PRIVATE_KEY !== undefined ? [process.env.OEC_TEST_PRIVATE_KEY] : [],
+      accounts:
+        process.env.OEC_TEST_PRIVATE_KEY !== undefined
+          ? [process.env.OEC_TEST_PRIVATE_KEY]
+          : [],
     },
     bsc: {
       url: 'https://bsc-dataseed1.defibit.io',
       chainId: 56,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     bsc_test: {
       url: 'https://data-seed-prebsc-1-s1.binance.org:8545',
       chainId: 97,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
   },
   gasReporter: {

@@ -11,7 +11,10 @@ library WyvernAtomicizer {
         uint256[] calldataLengths,
         bytes calldatas
     ) public {
-        require(addrs.length == values.length && addrs.length == calldataLengths.length);
+        require(
+            addrs.length == values.length &&
+                addrs.length == calldataLengths.length
+        );
 
         uint256 j = 0;
         for (uint256 i = 0; i < addrs.length; i++) {

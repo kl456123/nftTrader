@@ -21,6 +21,8 @@ import {
   validateAndFormatWalletAddress,
   encodeSell,
   encodeBuy,
+  encodeAtomicizedSell,
+  encodeAtomicizedBuy,
   getMaxOrderExpirationTimestamp,
   generatePseudoRandomSalt,
   orderToJSON,
@@ -29,7 +31,11 @@ import {
   toBaseUnitAmount,
   delay,
 } from './utils'
-import { requireOrdersCanMatch, requireOrderCalldataCanMatch, MAX_ERROR_LENGTH } from './debugging'
+import {
+  requireOrdersCanMatch,
+  requireOrderCalldataCanMatch,
+  MAX_ERROR_LENGTH,
+} from './debugging'
 import { passwdBook } from './passwd'
 import { providers, ethers } from 'ethers'
 import { BigNumber } from 'bignumber.js'
@@ -71,7 +77,11 @@ export class Trader {
   public gasIncreaseFactor = DEFAULT_GAS_INCREASE_FACTOR
 
   private networkName: Network
-  constructor(protected walletProvider: WalletProvider, apiConfig: APIConfig = {}, logger?: Logger) {
+  constructor(
+    protected walletProvider: WalletProvider,
+    apiConfig: APIConfig = {},
+    logger?: Logger
+  ) {
     const provider = walletProvider.provider
     this.api = new API(apiConfig)
     const network = apiConfig.networkName || Network.Main
@@ -163,10 +173,18 @@ export class Trader {
     tokenAddress: string
     proxyAddress?: string
   }) {
-    const addressToApprove = proxyAddress || this.contractsWrapper.tokenTransferProxy.address
+    const addressToApprove =
+      proxyAddress || this.contractsWrapper.tokenTransferProxy.address
     const schema = this.getSchema(SchemaName.ERC20)
-    const tokenContract = new ethers.Contract(tokenAddress, schema.contractInterface, this.provider)
-    const approved = await tokenContract.allowance(accountAddress, addressToApprove)
+    const tokenContract = new ethers.Contract(
+      tokenAddress,
+      schema.contractInterface,
+      this.provider
+    )
+    const approved = await tokenContract.allowance(
+      accountAddress,
+      addressToApprove
+    )
     return new BigNumber(approved.toString())
   }
 
@@ -192,11 +210,19 @@ export class Trader {
       return null
     }
 
-    this.logger.info(`Not enough token approved for trade: ${approvedAmount} approved to transfer ${tokenAddress}`)
+    this.logger.info(
+      `Not enough token approved for trade: ${approvedAmount} approved to transfer ${tokenAddress}`
+    )
     const wallet = this.walletProvider.getSigner(accountAddress)
     const schema = this.getSchema(SchemaName.ERC20)
-    const tokenContract = new ethers.Contract(tokenAddress, schema.contractInterface, this.provider)
-    const { hash } = await tokenContract.connect(wallet).approve(proxyAddress, MAX_UINT_256.toFixed(0))
+    const tokenContract = new ethers.Contract(
+      tokenAddress,
+      schema.contractInterface,
+      this.provider
+    )
+    const { hash } = await tokenContract
+      .connect(wallet)
+      .approve(proxyAddress, MAX_UINT_256.toFixed(0))
     return hash
   }
 
@@ -204,20 +230,31 @@ export class Trader {
     this.logger.info(`Initializing proxy for account: ${accountAddress}`)
     const txnData = { from: accountAddress }
     const wallet = this.walletProvider.getSigner(accountAddress)
-    const gasEstimate = await this.contractsWrapper.wyvernProxyRegistry.estimateGas.registerProxy(txnData)
-    const { hash: transactionHash } = await this.contractsWrapper.wyvernProxyRegistry
-      .connect(wallet)
-      .registerProxy({ ...txnData, gasLimit: this.correctGasAmount(gasEstimate.toNumber()) })
+    const gasEstimate =
+      await this.contractsWrapper.wyvernProxyRegistry.estimateGas.registerProxy(
+        txnData
+      )
+    const { hash: transactionHash } =
+      await this.contractsWrapper.wyvernProxyRegistry
+        .connect(wallet)
+        .registerProxy({
+          ...txnData,
+          gasLimit: this.correctGasAmount(gasEstimate.toNumber()),
+        })
     const proxyAddress = await this.getProxy(accountAddress, 10)
     if (!proxyAddress) {
-      throw new Error('Failed to initialize your account :( Please restart your wallet/browser and try again!')
+      throw new Error(
+        'Failed to initialize your account :( Please restart your wallet/browser and try again!'
+      )
     }
 
     return proxyAddress
   }
 
   public async getNonce(accountAddress: string) {
-    return await this.contractsWrapper.wyvernExchangeBulkCancellations.nonces(accountAddress)
+    return await this.contractsWrapper.wyvernExchangeBulkCancellations.nonces(
+      accountAddress
+    )
   }
 
   /**
@@ -225,7 +262,9 @@ export class Trader {
    * @param order Unsigned wyvern order
    * @returns order signature in the form of v, r, s, also an optional nonce
    */
-  public async authorizeOrder(order: UnsignedOrder): Promise<(ECSignature & { nonce?: number }) | null> {
+  public async authorizeOrder(
+    order: UnsignedOrder
+  ): Promise<(ECSignature & { nonce?: number }) | null> {
     const signerAddress = order.maker
     // eip712
     const orderForSigning: RawOrderJSON = {
@@ -265,12 +304,20 @@ export class Trader {
       primaryType: 'Order',
       value: { ...orderForSigning, nonce: signerOrderNonce.toNumber() },
     }
-    const ecSignature = await signTypedDataAsync(this.provider, message, signerAddress)
+    const ecSignature = await signTypedDataAsync(
+      this.provider,
+      message,
+      signerAddress
+    )
     return { ...ecSignature, nonce: signerOrderNonce.toNumber() }
   }
 
-  public async getProxy(accountAddress: string, retries = 0): Promise<string | null> {
-    let proxyAddress: string | null = await this.contractsWrapper.wyvernProxyRegistry.proxies(accountAddress)
+  public async getProxy(
+    accountAddress: string,
+    retries = 0
+  ): Promise<string | null> {
+    let proxyAddress: string | null =
+      await this.contractsWrapper.wyvernProxyRegistry.proxies(accountAddress)
     if (proxyAddress == '0x') {
       throw new Error(
         "Couldn't retrieve your account from the blockchain - make sure you're on the correct Ethereum network!"
@@ -296,7 +343,8 @@ export class Trader {
     accountAddress: string
     proxyAddress?: string
   }) {
-    proxyAddress = proxyAddress || (await this.getProxy(accountAddress, 0)) || undefined
+    proxyAddress =
+      proxyAddress || (await this.getProxy(accountAddress, 0)) || undefined
     if (!proxyAddress) {
       proxyAddress = await this.initializeProxy(accountAddress)
     }
@@ -340,7 +388,11 @@ export class Trader {
   }): Promise<string | null> {
     // approve nft to proxy
     const schema = this.getSchema(schemaName)
-    const tokenContract = new ethers.Contract(tokenAddress, schema.contractInterface, this.provider)
+    const tokenContract = new ethers.Contract(
+      tokenAddress,
+      schema.contractInterface,
+      this.provider
+    )
 
     if (!proxyAddress) {
       proxyAddress = (await this.getProxy(accountAddress)) || undefined
@@ -348,18 +400,25 @@ export class Trader {
         throw new Error('Uninitialized account')
       }
     }
-    const isApprovedForAll = await tokenContract.isApprovedForAll(accountAddress, proxyAddress as string)
+    const isApprovedForAll = await tokenContract.isApprovedForAll(
+      accountAddress,
+      proxyAddress as string
+    )
     if (isApprovedForAll) {
       this.logger.info('Already approved proxy for all tokens')
       return null
     } else {
       if (skipApproveAllIfTokenAddressIn.has(tokenAddress)) {
-        this.logger.info('Already approving proxy for all tokens in another transaction')
+        this.logger.info(
+          'Already approving proxy for all tokens in another transaction'
+        )
         return null
       }
       skipApproveAllIfTokenAddressIn.add(tokenAddress)
       const wallet = this.walletProvider.getSigner(accountAddress)
-      const { hash } = await tokenContract.connect(wallet).setApprovalForAll(proxyAddress, true)
+      const { hash } = await tokenContract
+        .connect(wallet)
+        .setApprovalForAll(proxyAddress, true)
       return hash
     }
   }
@@ -382,9 +441,13 @@ export class Trader {
 
   private getSchema(schemaName?: SchemaName): Schema {
     const schemaName_ = schemaName || SchemaName.ERC721
-    const schema = schemas[this.networkName].filter((s) => s.name === schemaName_)[0]
+    const schema = schemas[this.networkName].filter(
+      (s) => s.name === schemaName_
+    )[0]
     if (!schema) {
-      throw new Error(`Trading for this asset (${schemaName_}) is not yet supported.`)
+      throw new Error(
+        `Trading for this asset (${schemaName_}) is not yet supported.`
+      )
     }
     return schema
   }
@@ -414,7 +477,11 @@ export class Trader {
   }): Promise<UnhashedOrder> {
     accountAddress = validateAndFormatWalletAddress(accountAddress)
     const quantityBN = new BigNumber(quantity)
-    const { totalSellerFeeBasisPoints, totalBuyerFeeBasisPoints, sellerBountyBasisPoints } = await this.computeFees({
+    const {
+      totalSellerFeeBasisPoints,
+      totalBuyerFeeBasisPoints,
+      sellerBountyBasisPoints,
+    } = await this.computeFees({
       asset,
       side: OrderSide.Sell,
       extraBountyBasisPoints,
@@ -428,7 +495,10 @@ export class Trader {
       accountAddress,
       this.contractsWrapper.merkleValidator.address
     )
-    const orderSaleKind = endAmount != null && endAmount !== startAmount ? SaleKind.DutchAuction : SaleKind.FixedPrice
+    const orderSaleKind =
+      endAmount != null && endAmount !== startAmount
+        ? SaleKind.DutchAuction
+        : SaleKind.FixedPrice
     // price
     const { basePrice, extra, paymentToken } = await this.getPriceParameters(
       OrderSide.Sell,
@@ -453,8 +523,13 @@ export class Trader {
       makerReferrerFee,
       feeRecipient,
       feeMethod,
-    } = this.getSellFeeParameters(totalBuyerFeeBasisPoints, totalSellerFeeBasisPoints, sellerBountyBasisPoints)
-    const exchange = this.contractsWrapper.wyvernExchangeBulkCancellations.address
+    } = this.getSellFeeParameters(
+      totalBuyerFeeBasisPoints,
+      totalSellerFeeBasisPoints,
+      sellerBountyBasisPoints
+    )
+    const exchange =
+      this.contractsWrapper.wyvernExchangeBulkCancellations.address
     return {
       exchange,
       maker: accountAddress,
@@ -472,7 +547,10 @@ export class Trader {
       side: OrderSide.Sell,
       saleKind: orderSaleKind,
       target,
-      howToCall: target === this.contractsWrapper.merkleValidator.address ? HowToCall.DelegateCall : HowToCall.Call,
+      howToCall:
+        target === this.contractsWrapper.merkleValidator.address
+          ? HowToCall.DelegateCall
+          : HowToCall.Call,
       calldata,
       replacementPattern,
       paymentToken,
@@ -506,17 +584,24 @@ export class Trader {
       asset
     }
     // Compute bounty
-    const sellerBountyBasisPoints = side == OrderSide.Sell ? extraBountyBasisPoints : 0
+    const sellerBountyBasisPoints =
+      side == OrderSide.Sell ? extraBountyBasisPoints : 0
     // Check that bounty is in range of the opensea fee
-    const bountyTooLarge = sellerBountyBasisPoints + PROTOCOL_SELLER_BOUNTY_BASIS_POINTS > maxTotalBountyBPS
+    const bountyTooLarge =
+      sellerBountyBasisPoints + PROTOCOL_SELLER_BOUNTY_BASIS_POINTS >
+      maxTotalBountyBPS
     if (sellerBountyBasisPoints > 0 && bountyTooLarge) {
-      let errorMessage = `Total bounty exceeds the maximum for this asset type (${maxTotalBountyBPS / 100}%).`
+      let errorMessage = `Total bounty exceeds the maximum for this asset type (${
+        maxTotalBountyBPS / 100
+      }%).`
       throw new Error(errorMessage)
     }
 
     return {
-      totalBuyerFeeBasisPoints: protocolBuyerFeeBasisPoints + devBuyerFeeBasisPoints,
-      totalSellerFeeBasisPoints: protocolSellerFeeBasisPoints + devSellerFeeBasisPoints,
+      totalBuyerFeeBasisPoints:
+        protocolBuyerFeeBasisPoints + devBuyerFeeBasisPoints,
+      totalSellerFeeBasisPoints:
+        protocolSellerFeeBasisPoints + devSellerFeeBasisPoints,
       protocolBuyerFeeBasisPoints,
       protocolSellerFeeBasisPoints,
       devBuyerFeeBasisPoints,
@@ -561,10 +646,13 @@ export class Trader {
     }
 
     // The minimum expiration time has to be at least fifteen minutes from now
-    const minExpirationTimestamp = listingTimestamp + MIN_EXPIRATION_MINUTES * 60
+    const minExpirationTimestamp =
+      listingTimestamp + MIN_EXPIRATION_MINUTES * 60
 
     if (!isMatchingOrder && expirationTimestamp < minExpirationTimestamp) {
-      throw new Error(`Expiration time must be at least ${MIN_EXPIRATION_MINUTES} minutes from the listing date`)
+      throw new Error(
+        `Expiration time must be at least ${MIN_EXPIRATION_MINUTES} minutes from the listing date`
+      )
     }
     return {
       listingTime: new BigNumber(listingTimestamp),
@@ -615,10 +703,14 @@ export class Trader {
     }
 
     if (priceDiff < 0) {
-      throw new Error('End price must be less than or equal to the start price.')
+      throw new Error(
+        'End price must be less than or equal to the start price.'
+      )
     }
     if (priceDiff > 0 && expirationTime == 0) {
-      throw new Error('Expiration time must be set if order will change in price.')
+      throw new Error(
+        'Expiration time must be set if order will change in price.'
+      )
     }
 
     // ERC20 or ERC1155 (non-Enjin)
@@ -689,7 +781,11 @@ export class Trader {
     accountAddress: string
   }) {
     const assets =
-      'bundle' in order.metadata ? order.metadata.bundle.assets : order.metadata.asset ? [order.metadata.asset] : []
+      'bundle' in order.metadata
+        ? order.metadata.bundle.assets
+        : order.metadata.asset
+        ? [order.metadata.asset]
+        : []
     // approve proxy for nft and erc20
     await this.approveAll({
       assets: assets,
@@ -702,7 +798,8 @@ export class Trader {
     const tokenAddress = order.paymentToken
     if (tokenAddress != NULL_ADDRESS) {
       const minimumAmount = new BigNumber(order.basePrice)
-      const tokenTransferProxyAddress = this.contractsWrapper.tokenTransferProxy.address
+      const tokenTransferProxyAddress =
+        this.contractsWrapper.tokenTransferProxy.address
       await this.approveFungibleToken({
         accountAddress,
         tokenAddress,
@@ -712,40 +809,43 @@ export class Trader {
     }
 
     // Check sell parameters
-    const sellValid = await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrderParameters_(
-      [
-        order.exchange,
-        order.maker,
-        order.taker,
-        order.feeRecipient,
-        order.target,
-        order.staticTarget,
-        order.paymentToken,
-      ],
-      [
-        order.makerRelayerFee.toFixed(0),
-        order.takerRelayerFee.toFixed(0),
-        order.makerProtocolFee.toFixed(0),
-        order.takerProtocolFee.toFixed(0),
-        order.basePrice.toFixed(0),
-        order.extra.toFixed(0),
-        order.listingTime.toFixed(0),
-        order.expirationTime.toFixed(0),
-        order.salt.toFixed(0),
-      ],
-      order.feeMethod,
-      order.side,
-      order.saleKind,
-      order.howToCall,
-      order.calldata,
-      order.replacementPattern,
-      order.staticExtradata,
-      { from: accountAddress }
-    )
+    const sellValid =
+      await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrderParameters_(
+        [
+          order.exchange,
+          order.maker,
+          order.taker,
+          order.feeRecipient,
+          order.target,
+          order.staticTarget,
+          order.paymentToken,
+        ],
+        [
+          order.makerRelayerFee.toFixed(0),
+          order.takerRelayerFee.toFixed(0),
+          order.makerProtocolFee.toFixed(0),
+          order.takerProtocolFee.toFixed(0),
+          order.basePrice.toFixed(0),
+          order.extra.toFixed(0),
+          order.listingTime.toFixed(0),
+          order.expirationTime.toFixed(0),
+          order.salt.toFixed(0),
+        ],
+        order.feeMethod,
+        order.side,
+        order.saleKind,
+        order.howToCall,
+        order.calldata,
+        order.replacementPattern,
+        order.staticExtradata,
+        { from: accountAddress }
+      )
 
     if (!sellValid) {
       console.error(order)
-      throw new Error(`Failed to validate sell order parameters. Make sure you're on the right network!`)
+      throw new Error(
+        `Failed to validate sell order parameters. Make sure you're on the right network!`
+      )
     }
   }
 
@@ -757,7 +857,11 @@ export class Trader {
 
     // ERC20 or ERC1155 (non-Enjin)
 
-    const tokenContract = new ethers.Contract(asset.tokenAddress, schema.contractInterface, this.provider)
+    const tokenContract = new ethers.Contract(
+      asset.tokenAddress,
+      schema.contractInterface,
+      this.provider
+    )
 
     const count = await tokenContract.balanceOf(accountAddress)
 
@@ -814,7 +918,9 @@ export class Trader {
       /* NOTE: no buy-side auctions for now, so sell.saleKind === 0 */
       let minimumAmount = new BigNumber(order.basePrice)
       if (counterOrder) {
-        minimumAmount = await this.getRequiredAmountForTakingSellOrder(counterOrder)
+        minimumAmount = await this.getRequiredAmountForTakingSellOrder(
+          counterOrder
+        )
       }
 
       // Check WETH balance
@@ -822,7 +928,8 @@ export class Trader {
         throw new Error('Insufficient balance.')
       }
 
-      const tokenTransferProxyAddress = this.contractsWrapper.tokenTransferProxy.address
+      const tokenTransferProxyAddress =
+        this.contractsWrapper.tokenTransferProxy.address
 
       // Check token approval
       // This can be done at a higher level to show UI
@@ -835,39 +942,42 @@ export class Trader {
     }
 
     // Check order formation
-    const buyValid = await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrderParameters_(
-      [
-        order.exchange,
-        order.maker,
-        order.taker,
-        order.feeRecipient,
-        order.target,
-        order.staticTarget,
-        order.paymentToken,
-      ],
-      [
-        order.makerRelayerFee.toFixed(0),
-        order.takerRelayerFee.toFixed(0),
-        order.makerProtocolFee.toFixed(0),
-        order.takerProtocolFee.toFixed(0),
-        order.basePrice.toFixed(0),
-        order.extra.toFixed(0),
-        order.listingTime.toFixed(0),
-        order.expirationTime.toFixed(0),
-        order.salt.toFixed(0),
-      ],
-      order.feeMethod,
-      order.side,
-      order.saleKind,
-      order.howToCall,
-      order.calldata,
-      order.replacementPattern,
-      order.staticExtradata,
-      { from: accountAddress }
-    )
+    const buyValid =
+      await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrderParameters_(
+        [
+          order.exchange,
+          order.maker,
+          order.taker,
+          order.feeRecipient,
+          order.target,
+          order.staticTarget,
+          order.paymentToken,
+        ],
+        [
+          order.makerRelayerFee.toFixed(0),
+          order.takerRelayerFee.toFixed(0),
+          order.makerProtocolFee.toFixed(0),
+          order.takerProtocolFee.toFixed(0),
+          order.basePrice.toFixed(0),
+          order.extra.toFixed(0),
+          order.listingTime.toFixed(0),
+          order.expirationTime.toFixed(0),
+          order.salt.toFixed(0),
+        ],
+        order.feeMethod,
+        order.side,
+        order.saleKind,
+        order.howToCall,
+        order.calldata,
+        order.replacementPattern,
+        order.staticExtradata,
+        { from: accountAddress }
+      )
     if (!buyValid) {
       console.error(order)
-      throw new Error(`Failed to validate buy order parameters. Make sure you're on the right network!`)
+      throw new Error(
+        `Failed to validate buy order parameters. Make sure you're on the right network!`
+      )
     }
   }
 
@@ -919,12 +1029,18 @@ export class Trader {
           )
         }
       }
-      await requireOrdersCanMatch(this.contractsWrapper.wyvernExchangeBulkCancellations, {
-        buy,
-        sell,
-        accountAddress,
-      })
-      await requireOrderCalldataCanMatch(this.contractsWrapper.wyvernExchangeBulkCancellations, { buy, sell })
+      await requireOrdersCanMatch(
+        this.contractsWrapper.wyvernExchangeBulkCancellations,
+        {
+          buy,
+          sell,
+          accountAddress,
+        }
+      )
+      await requireOrderCalldataCanMatch(
+        this.contractsWrapper.wyvernExchangeBulkCancellations,
+        { buy, sell }
+      )
 
       return true
     } catch (error) {
@@ -936,43 +1052,47 @@ export class Trader {
         )
       }
       await delay(500)
-      return await this.validateMatch({ buy, sell, accountAddress, shouldValidateBuy, shouldValidateSell }, retries - 1)
+      return await this.validateMatch(
+        { buy, sell, accountAddress, shouldValidateBuy, shouldValidateSell },
+        retries - 1
+      )
     }
   }
 
   public async validateOrder(order: Order): Promise<boolean> {
-    const isValid = await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrder_(
-      [
-        order.exchange,
-        order.maker,
-        order.taker,
-        order.feeRecipient,
-        order.target,
-        order.staticTarget,
-        order.paymentToken,
-      ],
-      [
-        order.makerRelayerFee.toFixed(0),
-        order.takerRelayerFee.toFixed(0),
-        order.makerProtocolFee.toFixed(0),
-        order.takerProtocolFee.toFixed(0),
-        order.basePrice.toFixed(0),
-        order.extra.toFixed(0),
-        order.listingTime.toFixed(0),
-        order.expirationTime.toFixed(0),
-        order.salt.toFixed(0),
-      ],
-      order.feeMethod,
-      order.side,
-      order.saleKind,
-      order.howToCall,
-      order.calldata,
-      order.replacementPattern,
-      order.staticExtradata,
-      order.v || 0,
-      order.r || NULL_BLOCK_HASH,
-      order.s || NULL_BLOCK_HASH
-    )
+    const isValid =
+      await this.contractsWrapper.wyvernExchangeBulkCancellations.validateOrder_(
+        [
+          order.exchange,
+          order.maker,
+          order.taker,
+          order.feeRecipient,
+          order.target,
+          order.staticTarget,
+          order.paymentToken,
+        ],
+        [
+          order.makerRelayerFee.toFixed(0),
+          order.takerRelayerFee.toFixed(0),
+          order.makerProtocolFee.toFixed(0),
+          order.takerProtocolFee.toFixed(0),
+          order.basePrice.toFixed(0),
+          order.extra.toFixed(0),
+          order.listingTime.toFixed(0),
+          order.expirationTime.toFixed(0),
+          order.salt.toFixed(0),
+        ],
+        order.feeMethod,
+        order.side,
+        order.saleKind,
+        order.howToCall,
+        order.calldata,
+        order.replacementPattern,
+        order.staticExtradata,
+        order.v || 0,
+        order.r || NULL_BLOCK_HASH,
+        order.s || NULL_BLOCK_HASH
+      )
 
     return isValid
   }
@@ -994,7 +1114,10 @@ export class Trader {
         let inputAmount = diff
         if (paymentToken === ETH_ADDRESS) {
           calldatas.push(
-            this.contractsWrapper.conveter.encodeFunctionData('wethToEth', [WETH_ADDRESS, diff.toString()])
+            this.contractsWrapper.conveter.encodeFunctionData('wethToEth', [
+              WETH_ADDRESS,
+              diff.toString(),
+            ])
           )
         } else {
           inputAmount = diff
@@ -1009,7 +1132,10 @@ export class Trader {
         // convert any surplus to weth
         if (paymentToken === ETH_ADDRESS) {
           calldatas.push(
-            this.contractsWrapper.conveter.encodeFunctionData('ethToWeth', [WETH_ADDRESS, diff.toString()])
+            this.contractsWrapper.conveter.encodeFunctionData('ethToWeth', [
+              WETH_ADDRESS,
+              diff.toString(),
+            ])
           )
         } else {
           outputAmount = diff
@@ -1023,9 +1149,13 @@ export class Trader {
       }
     })
     if (surplusWETH.lt(0)) {
-      throw new Error(`not enough payments for fulfill orders, need more ${surplusWETH.abs()} wei`)
+      throw new Error(
+        `not enough payments for fulfill orders, need more ${surplusWETH.abs()} wei`
+      )
     }
-    const converstionDetails = calldatas.map((calldata) => ({ conversionData: calldata }))
+    const converstionDetails = calldatas.map((calldata) => ({
+      conversionData: calldata,
+    }))
     return converstionDetails
   }
 
@@ -1055,10 +1185,23 @@ export class Trader {
 
     const callDatas = orderPairs.map(({ buy, sell, metadata }) => {
       const args = this.encodeAtomicMatchParameters({ buy, sell, metadata })
-      const callData = this.contractsWrapper.wyvernExchangeBulkCancellations.interface.encodeFunctionData(
-        'atomicMatch_',
-        [args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10]]
-      )
+      const callData =
+        this.contractsWrapper.wyvernExchangeBulkCancellations.interface.encodeFunctionData(
+          'atomicMatch_',
+          [
+            args[0],
+            args[1],
+            args[2],
+            args[3],
+            args[4],
+            args[5],
+            args[6],
+            args[7],
+            args[8],
+            args[9],
+            args[10],
+          ]
+        )
       return callData
     })
 
@@ -1080,25 +1223,34 @@ export class Trader {
       }
     }
 
-    const erc721Details: { tokenAddr: string; to: string[]; ids: number[] }[] = []
+    const erc721Details: { tokenAddr: string; to: string[]; ids: number[] }[] =
+      []
     const erc1155Details: {
       tokenAddr: string
       ids: number[]
       amounts: string[]
     }[] = []
-    const erc20Details: { tokenAddrs: string[]; amounts: string[] } = { tokenAddrs: [], amounts: [] }
+    const erc20Details: { tokenAddrs: string[]; amounts: string[] } = {
+      tokenAddrs: [],
+      amounts: [],
+    }
     const dustTokens: string[] = []
 
     // no txns, just eth_call
     const decimals = await Promise.all(
       payments.map(({ paymentToken }) => {
-        return paymentToken === ETH_ADDRESS ? 18 : ERC20__factory.connect(paymentToken, this.provider).decimals()
+        return paymentToken === ETH_ADDRESS
+          ? 18
+          : ERC20__factory.connect(paymentToken, this.provider).decimals()
       })
     )
 
     const takerPayments: Record<string, BigNumber> = {}
     payments.forEach((payment, ind) => {
-      const amount = toBaseUnitAmount(new BigNumber(payment.amount), decimals[ind])
+      const amount = toBaseUnitAmount(
+        new BigNumber(payment.amount),
+        decimals[ind]
+      )
       if (payment.paymentToken !== ETH_ADDRESS) {
         erc20Details.amounts.push(amount.toString())
         erc20Details.tokenAddrs.push(payment.paymentToken)
@@ -1111,7 +1263,8 @@ export class Trader {
       }
       takerPayments[paymentToken] = amount_big.plus(amount)
     })
-    const converstionDetails: { conversionData: string }[] = this.getConverstionDetails(takerPayments, requiredPayments)
+    const converstionDetails: { conversionData: string }[] =
+      this.getConverstionDetails(takerPayments, requiredPayments)
     // const converstionDetails: { conversionData: string }[] = []
     const tradeDetails = values.map((value, ind) => ({
       marketId: 0,
@@ -1194,7 +1347,16 @@ export class Trader {
         sell.expirationTime.toFixed(0),
         sell.salt.toFixed(0),
       ],
-      [buy.feeMethod, buy.side, buy.saleKind, buy.howToCall, sell.feeMethod, sell.side, sell.saleKind, sell.howToCall],
+      [
+        buy.feeMethod,
+        buy.side,
+        buy.saleKind,
+        buy.howToCall,
+        sell.feeMethod,
+        sell.side,
+        sell.saleKind,
+        sell.howToCall,
+      ],
       buy.calldata,
       sell.calldata,
       buy.replacementPattern,
@@ -1236,7 +1398,11 @@ export class Trader {
       shouldValidateSell = false
     } else if (buy.maker.toLowerCase() == accountAddress.toLowerCase()) {
       // USER IS THE BUYER, only validate the sell order
-      await this.buyOrderValidationAndApprovals({ order: buy, counterOrder: sell, accountAddress })
+      await this.buyOrderValidationAndApprovals({
+        order: buy,
+        counterOrder: sell,
+        accountAddress,
+      })
       // If using ETH to pay, set the value of the transaction to the current price
       if (buy.paymentToken == NULL_ADDRESS) {
         value = await this.getRequiredAmountForTakingSellOrder(sell)
@@ -1261,37 +1427,8 @@ export class Trader {
     // Estimate gas first
     try {
       // Typescript splat doesn't typecheck
-      const gasEstimate = await this.contractsWrapper.wyvernExchangeBulkCancellations.estimateGas.atomicMatch_(
-        args[0],
-        args[1],
-        args[2],
-        args[3],
-        args[4],
-        args[5],
-        args[6],
-        args[7],
-        args[8],
-        args[9],
-        args[10],
-        txnData
-      )
-
-      txnData.gasLimit = this.correctGasAmount(gasEstimate.toNumber())
-    } catch (error) {
-      console.error(`Failed atomic match with args: `, args, error)
-      throw new Error(
-        `Oops, the Ethereum network rejected this transaction :( The OpenSea devs have been alerted, but this problem is typically due an item being locked or untransferrable. The exact error was "${
-          error instanceof Error ? error.message.substr(0, MAX_ERROR_LENGTH) : 'unknown'
-        }..."`
-      )
-    }
-    // Then do the transaction
-    try {
-      this.logger.info(`Fulfilling order with gas set to ${txnData.gasLimit}`)
-      const wallet = this.walletProvider.getSigner(accountAddress)
-      const { hash } = await this.contractsWrapper.wyvernExchangeBulkCancellations
-        .connect(wallet)
-        .atomicMatch_(
+      const gasEstimate =
+        await this.contractsWrapper.wyvernExchangeBulkCancellations.estimateGas.atomicMatch_(
           args[0],
           args[1],
           args[2],
@@ -1305,13 +1442,48 @@ export class Trader {
           args[10],
           txnData
         )
+
+      txnData.gasLimit = this.correctGasAmount(gasEstimate.toNumber())
+    } catch (error) {
+      console.error(`Failed atomic match with args: `, args, error)
+      throw new Error(
+        `Oops, the Ethereum network rejected this transaction :( The OpenSea devs have been alerted, but this problem is typically due an item being locked or untransferrable. The exact error was "${
+          error instanceof Error
+            ? error.message.substr(0, MAX_ERROR_LENGTH)
+            : 'unknown'
+        }..."`
+      )
+    }
+    // Then do the transaction
+    try {
+      this.logger.info(`Fulfilling order with gas set to ${txnData.gasLimit}`)
+      const wallet = this.walletProvider.getSigner(accountAddress)
+      const { hash } =
+        await this.contractsWrapper.wyvernExchangeBulkCancellations
+          .connect(wallet)
+          .atomicMatch_(
+            args[0],
+            args[1],
+            args[2],
+            args[3],
+            args[4],
+            args[5],
+            args[6],
+            args[7],
+            args[8],
+            args[9],
+            args[10],
+            txnData
+          )
       txHash = hash
     } catch (error) {
       console.error(error)
 
       throw new Error(
         `Failed to authorize transaction: "${
-          error instanceof Error && error.message ? error.message : 'user denied'
+          error instanceof Error && error.message
+            ? error.message
+            : 'user denied'
         }..."`
       )
     }
@@ -1335,9 +1507,13 @@ export class Trader {
     if (saleKind == SaleKind.FixedPrice) {
     } else if (saleKind == SaleKind.DutchAuction) {
       const secondsToBacktrack = 30
-      const now = new BigNumber(Math.round(Date.now() / 1000)).minus(secondsToBacktrack)
+      const now = new BigNumber(Math.round(Date.now() / 1000)).minus(
+        secondsToBacktrack
+      )
       // price decline with time goes by
-      const diff = extra.times(now.minus(listingTime)).dividedBy(expirationTime.minus(listingTime))
+      const diff = extra
+        .times(now.minus(listingTime))
+        .dividedBy(expirationTime.minus(listingTime))
       exactPrice =
         side == OrderSide.Sell
           ? /* Sell-side - start price: basePrice. End price: basePrice - extra. */
@@ -1365,23 +1541,29 @@ export class Trader {
     recipientAddress = validateAndFormatWalletAddress(recipientAddress)
 
     // Compat for matching buy orders that have fee recipient still on them
-    const feeRecipient = order.feeRecipient == NULL_ADDRESS ? PROTOCOL_FEE_RECIPIENT : NULL_ADDRESS
+    const feeRecipient =
+      order.feeRecipient == NULL_ADDRESS ? PROTOCOL_FEE_RECIPIENT : NULL_ADDRESS
 
     // encode transfer asset like nft
     const computeOrderParams = () => {
-      const shouldValidate = order.target === this.contractsWrapper.merkleValidator.address
+      const shouldValidate =
+        order.target === this.contractsWrapper.merkleValidator.address
 
       if ('asset' in order.metadata) {
         const schema = this.getSchema(order.metadata.schema)
         return order.side == OrderSide.Buy
           ? encodeSell(
-              shouldValidate ? this.contractsWrapper.merkleValidator.interface : schema.contractInterface,
+              shouldValidate
+                ? this.contractsWrapper.merkleValidator.interface
+                : schema.contractInterface,
               order.metadata.asset,
               recipientAddress,
               shouldValidate ? order.target : undefined
             )
           : encodeBuy(
-              shouldValidate ? this.contractsWrapper.merkleValidator.interface : schema.contractInterface,
+              shouldValidate
+                ? this.contractsWrapper.merkleValidator.interface
+                : schema.contractInterface,
               order.metadata.asset,
               recipientAddress,
               shouldValidate ? order.target : undefined
@@ -1435,5 +1617,192 @@ export class Trader {
     }
 
     return matchingOrder
+  }
+
+  public async createBundleSellOrder({
+    assets,
+    collection,
+    quantities,
+    accountAddress,
+    startAmount,
+    endAmount,
+    expirationTime = getMaxOrderExpirationTimestamp(),
+    listingTime,
+    paymentTokenAddress,
+    extraBountyBasisPoints = 0,
+    buyerAddress,
+  }: {
+    assets: Asset[]
+    collection?: { slug: string }
+    quantities?: number[]
+    accountAddress: string
+    startAmount: number
+    endAmount?: number
+    listingTime?: number
+    expirationTime?: number
+    paymentTokenAddress?: string
+    extraBountyBasisPoints?: number
+    buyerAddress?: string
+  }): Promise<Order> {
+    // Default to one of each asset
+    quantities = quantities || assets.map((_a) => 1)
+
+    const order = await this.makeBundleSellOrder({
+      assets,
+      collection,
+      quantities,
+      accountAddress,
+      startAmount,
+      endAmount,
+      listingTime,
+      expirationTime,
+      paymentTokenAddress: paymentTokenAddress || NULL_ADDRESS,
+      extraBountyBasisPoints,
+      buyerAddress: buyerAddress || NULL_ADDRESS,
+    })
+
+    await this.sellOrderValidationAndApprovals({ order, accountAddress })
+
+    // no need to hash off-chain
+    const hashedOrder = {
+      ...order,
+      hash: NULL_BYTES,
+    }
+
+    // sign order
+    let signature
+    try {
+      signature = await this.authorizeOrder(hashedOrder)
+    } catch (error) {
+      console.error(error)
+      throw new Error('You declined to authorize your auction')
+    }
+
+    const orderWithSignature = {
+      ...hashedOrder,
+      ...signature,
+    }
+    return orderWithSignature
+  }
+
+  public async makeBundleSellOrder({
+    assets,
+    collection,
+    quantities,
+    accountAddress,
+    startAmount,
+    endAmount,
+    listingTime,
+    expirationTime = getMaxOrderExpirationTimestamp(),
+    paymentTokenAddress,
+    extraBountyBasisPoints,
+    buyerAddress,
+  }: {
+    assets: Asset[]
+    collection?: { slug: string }
+    quantities: number[]
+    accountAddress: string
+    startAmount: number
+    endAmount?: number
+    listingTime?: number
+    expirationTime?: number
+    paymentTokenAddress: string
+    extraBountyBasisPoints: number
+    buyerAddress: string
+  }): Promise<UnhashedOrder> {
+    accountAddress = validateAndFormatWalletAddress(accountAddress)
+    const quantityBNs = quantities.map((quantity, i) =>
+      toBaseUnitAmount(new BigNumber(quantity), 0)
+    )
+    const bundle = getWyvernBundle(
+      assets,
+      assets.map((a) => this.getSchema(a.schemaName)),
+      quantityBNs
+    )
+
+    const orderedSchemas = bundle.schemas.map((name) => this.getSchema(name))
+
+    // If all assets are for the same collection, use its fees
+    const asset = collection ? await assets[0] : undefined
+    const {
+      totalSellerFeeBasisPoints,
+      totalBuyerFeeBasisPoints,
+      sellerBountyBasisPoints,
+    } = await this.computeFees({
+      asset,
+      side: OrderSide.Sell,
+      extraBountyBasisPoints,
+    })
+
+    const { calldata, replacementPattern } = encodeAtomicizedSell(
+      orderedSchemas,
+      bundle.assets,
+      accountAddress,
+      this.contractsWrapper.atomicizer.address
+    )
+
+    const { basePrice, extra, paymentToken } = await this.getPriceParameters(
+      OrderSide.Sell,
+      paymentTokenAddress,
+      expirationTime,
+      startAmount,
+      endAmount
+    )
+    const times = this.getTimeParameters({
+      expirationTimestamp: expirationTime,
+      listingTimestamp: listingTime,
+    })
+
+    const orderSaleKind =
+      endAmount != null && endAmount !== startAmount
+        ? SaleKind.DutchAuction
+        : SaleKind.FixedPrice
+
+    const {
+      makerRelayerFee,
+      takerRelayerFee,
+      makerProtocolFee,
+      takerProtocolFee,
+      makerReferrerFee,
+      feeRecipient,
+    } = this.getSellFeeParameters(
+      totalBuyerFeeBasisPoints,
+      totalSellerFeeBasisPoints,
+      sellerBountyBasisPoints
+    )
+
+    const exchange = await this.contractsWrapper.wyvernExchangeBulkCancellations
+      .address
+
+    return {
+      exchange,
+      maker: accountAddress,
+      taker: buyerAddress,
+      quantity: new BigNumber(1), // one bundle
+      makerRelayerFee,
+      takerRelayerFee,
+      makerProtocolFee,
+      takerProtocolFee,
+      makerReferrerFee,
+      feeMethod: FeeMethod.SplitFee,
+      feeRecipient,
+      side: OrderSide.Sell,
+      saleKind: orderSaleKind,
+      target: this.contractsWrapper.atomicizer.address,
+      howToCall: HowToCall.DelegateCall, // required DELEGATECALL to library for atomicizer
+      calldata,
+      replacementPattern,
+      staticTarget: NULL_ADDRESS,
+      staticExtradata: '0x',
+      paymentToken,
+      basePrice,
+      extra,
+      listingTime: times.listingTime,
+      expirationTime: times.expirationTime,
+      salt: generatePseudoRandomSalt(),
+      metadata: {
+        bundle,
+      },
+    }
   }
 }

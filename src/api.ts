@@ -1,4 +1,10 @@
-import { APIConfig, Order, OrderQuery, OrderbookResponse, OrderJSON } from './types'
+import {
+  APIConfig,
+  Order,
+  OrderQuery,
+  OrderbookResponse,
+  OrderJSON,
+} from './types'
 import { Logger, logger as defaultLogger } from './logger'
 import { ORDERBOOK_PATH, API_BASE_MAINNET } from './constants'
 import { orderFromJSON } from './utils'
@@ -17,14 +23,20 @@ export class API {
     this.logger = logger ?? defaultLogger
   }
 
-  public async getOrders(query: OrderQuery, page = 1): Promise<{ orders: Order[]; count: number }> {
+  public async getOrders(
+    query: OrderQuery,
+    page = 1
+  ): Promise<{ orders: Order[]; count: number }> {
     const result = await this.get(`${ORDERBOOK_PATH}/orders/`, {
       limit: this.pageSize,
       offset: (page - 1) * this.pageSize,
       ...query,
     })
     const json = result as OrderbookResponse
-    return { orders: json.orders.map((j) => orderFromJSON(j)), count: json.count }
+    return {
+      orders: json.orders.map((j) => orderFromJSON(j)),
+      count: json.count,
+    }
   }
 
   public async get<T>(apiPath: string, query: object = {}): Promise<T> {
@@ -47,7 +59,10 @@ export class API {
    */
   public async postOrder(order: OrderJSON, retries = 2): Promise<Order> {
     let json
-    json = (await this.post(`${ORDERBOOK_PATH}/orders/post/`, order)) as OrderJSON
+    json = (await this.post(
+      `${ORDERBOOK_PATH}/orders/post/`,
+      order
+    )) as OrderJSON
     return orderFromJSON(json)
   }
 

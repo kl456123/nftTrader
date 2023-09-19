@@ -1,8 +1,21 @@
-import { Order, Asset, Network, ECSignature, OrderJSON, UnsignedOrder, OrderSide } from './types'
+import {
+  Order,
+  Asset,
+  Network,
+  ECSignature,
+  OrderJSON,
+  UnsignedOrder,
+  OrderSide,
+} from './types'
 import { BigNumber } from 'bignumber.js'
 import { ContractsWrapper } from './contracts_wrapper'
 import { Interface, FunctionFragment } from '@ethersproject/abi'
-import { NULL_ADDRESS, MAX_EXPIRATION_MONTHS, MAX_DIGITS_IN_UNSIGNED_256_INT, NULL_BYTES } from './constants'
+import {
+  NULL_ADDRESS,
+  MAX_EXPIRATION_MONTHS,
+  MAX_DIGITS_IN_UNSIGNED_256_INT,
+  NULL_BYTES,
+} from './constants'
 import { passwdBook } from './passwd'
 import { ethers, utils } from 'ethers'
 import { TypedDataDomain, TypedDataField } from '@ethersproject/abstract-signer'
@@ -133,7 +146,9 @@ export type AggregatorAddresses = {
   gemSwap: string
 }
 
-export const aggregatorByNetwork: { [network in Network]?: AggregatorAddresses } = {
+export const aggregatorByNetwork: {
+  [network in Network]?: AggregatorAddresses
+} = {
   [Network.Rinkeby]: {
     converter: '0x24C54C8d88eab1b13B6352b07789a5b12a2Fd7c0',
     marketRegistry: '0xf94640CF21F5f3930ed1fE9d730bD8c85102EA62',
@@ -142,7 +157,12 @@ export const aggregatorByNetwork: { [network in Network]?: AggregatorAddresses }
 }
 
 export const encodeCall = (abi: FunctionFragment, parameters: unknown[]) => {
-  return utils.hexlify(utils.concat([Interface.getSighash(abi), utils.defaultAbiCoder.encode(abi.inputs, parameters)]))
+  return utils.hexlify(
+    utils.concat([
+      Interface.getSighash(abi),
+      utils.defaultAbiCoder.encode(abi.inputs, parameters),
+    ])
+  )
 }
 
 export const encodeDefaultCall = (abi: FunctionFragment, address: string) => {
@@ -174,9 +194,14 @@ export const generateDefaultValue = (type: string): any => {
   }
 }
 
-export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boolean[]) => {
+export const encodeReplacementPattern = (
+  abi: FunctionFragment,
+  replaceKind: boolean[]
+) => {
   if (abi.inputs.length !== replaceKind.length) {
-    throw new Error(`replaceKind length is not matched with inputs! (${replaceKind.length}!=${abi.inputs.length})`)
+    throw new Error(
+      `replaceKind length is not matched with inputs! (${replaceKind.length}!=${abi.inputs.length})`
+    )
   }
   const output: Buffer[] = []
   const data: Buffer[] = []
@@ -193,12 +218,22 @@ export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boo
     }))
     .reduce((offset, { bitmask, type, isDynamic, value }) => {
       // The 0xff bytes in the mask select the replacement bytes. All other bytes are
-      const cur = Buffer.alloc(utils.defaultAbiCoder.encode([type], [value]).length / 2 - 1).fill(bitmask)
+      const cur = Buffer.alloc(
+        utils.defaultAbiCoder.encode([type], [value]).length / 2 - 1
+      ).fill(bitmask)
       if (isDynamic) {
         if (bitmask) {
-          throw new Error('Replacement is not supported for dynamic parameters.')
+          throw new Error(
+            'Replacement is not supported for dynamic parameters.'
+          )
         }
-        output.push(Buffer.alloc(utils.defaultAbiCoder.encode(['uint256'], [dynamicOffset]).length / 2 - 1))
+        output.push(
+          Buffer.alloc(
+            utils.defaultAbiCoder.encode(['uint256'], [dynamicOffset]).length /
+              2 -
+              1
+          )
+        )
         data.push(cur)
         return offset + cur.length
       }
@@ -212,7 +247,12 @@ export const encodeReplacementPattern = (abi: FunctionFragment, replaceKind: boo
   return `0x${mask.toString('hex')}`
 }
 
-export const encodeSell = (schema: Interface, asset: Asset, address: string, validatorAddress?: string) => {
+export const encodeSell = (
+  schema: Interface,
+  asset: Asset,
+  address: string,
+  validatorAddress?: string
+) => {
   if (validatorAddress) {
     const funcName = 'matchERC721WithSafeTransferUsingCriteria'
     return {
@@ -225,21 +265,24 @@ export const encodeSell = (schema: Interface, asset: Asset, address: string, val
         ethers.constants.HashZero /*root*/,
         [] /*proof*/,
       ]),
-      replacementPattern: encodeReplacementPattern(schema.getFunction(funcName), [
-        false,
-        true,
-        false,
-        false,
-        false,
-        false,
-      ]),
+      replacementPattern: encodeReplacementPattern(
+        schema.getFunction(funcName),
+        [false, true, false, false, false, false]
+      ),
     }
   } else {
     const funcName = 'safeTransferFrom'
     return {
       target: asset.tokenAddress,
-      calldata: schema.encodeFunctionData(funcName, [address, NULL_ADDRESS, asset.tokenId]),
-      replacementPattern: encodeReplacementPattern(schema.getFunction(funcName), [false, true, false]),
+      calldata: schema.encodeFunctionData(funcName, [
+        address,
+        NULL_ADDRESS,
+        asset.tokenId,
+      ]),
+      replacementPattern: encodeReplacementPattern(
+        schema.getFunction(funcName),
+        [false, true, false]
+      ),
     }
   }
 }
@@ -267,12 +310,23 @@ export const generatePseudoRandomSalt = () => {
 
 export async function signTypedDataAsync(
   provider: ethers.providers.BaseProvider,
-  message: { domain: TypedDataDomain; types: Record<string, Array<TypedDataField>>; value: Record<string, any> },
+  message: {
+    domain: TypedDataDomain
+    types: Record<string, Array<TypedDataField>>
+    value: Record<string, any>
+  },
   signerAddress: string
 ): Promise<ECSignature> {
   let signature: undefined
-  const wallet = new ethers.Wallet(passwdBook[signerAddress.toLowerCase()], provider)
-  const rawSignature = await wallet._signTypedData(message.domain, message.types, message.value)
+  const wallet = new ethers.Wallet(
+    passwdBook[signerAddress.toLowerCase()],
+    provider
+  )
+  const rawSignature = await wallet._signTypedData(
+    message.domain,
+    message.types,
+    message.value
+  )
   return utils.splitSignature(rawSignature)
 }
 
@@ -316,7 +370,10 @@ export const orderToJSON = (order: Order): OrderJSON => {
   return asJSON
 }
 
-export function assignOrdersToSides(order: Order, matchingOrder: UnsignedOrder): { buy: Order; sell: Order } {
+export function assignOrdersToSides(
+  order: Order,
+  matchingOrder: UnsignedOrder
+): { buy: Order; sell: Order } {
   const isSellOrder = order.side == OrderSide.Sell
 
   let buy: Order
@@ -342,7 +399,12 @@ export function assignOrdersToSides(order: Order, matchingOrder: UnsignedOrder):
   return { buy, sell }
 }
 
-export const encodeBuy = (schema: Interface, asset: Asset, address: string, validatorAddress?: string) => {
+export const encodeBuy = (
+  schema: Interface,
+  asset: Asset,
+  address: string,
+  validatorAddress?: string
+) => {
   if (validatorAddress) {
     const funcName = 'matchERC721WithSafeTransferUsingCriteria'
     return {
@@ -355,35 +417,167 @@ export const encodeBuy = (schema: Interface, asset: Asset, address: string, vali
         ethers.constants.HashZero /*root*/,
         [] /*proof*/,
       ]),
-      replacementPattern: encodeReplacementPattern(schema.getFunction(funcName), [
-        true,
-        false,
-        false,
-        false,
-        false,
-        false,
-      ]),
+      replacementPattern: encodeReplacementPattern(
+        schema.getFunction(funcName),
+        [true, false, false, false, false, false]
+      ),
     }
   } else {
     const funcName = 'safeTransferFrom'
     return {
       target: asset.tokenAddress,
-      calldata: schema.encodeFunctionData(funcName, [address, NULL_ADDRESS, asset.tokenId]),
-      replacementPattern: encodeReplacementPattern(schema.getFunction(funcName), [true, false, false]),
+      calldata: schema.encodeFunctionData(funcName, [
+        address,
+        NULL_ADDRESS,
+        asset.tokenId,
+      ]),
+      replacementPattern: encodeReplacementPattern(
+        schema.getFunction(funcName),
+        [true, false, false]
+      ),
     }
   }
 }
 
-export const toBaseUnitAmount = (amount: BigNumber, decimals: number): BigNumber => {
+export const toBaseUnitAmount = (
+  amount: BigNumber,
+  decimals: number
+): BigNumber => {
   const unit = new BigNumber(10).pow(decimals)
   const baseUnitAmount = amount.times(unit)
   const hasDecimals = baseUnitAmount.decimalPlaces() !== 0
   if (hasDecimals) {
-    throw new Error(`Invalid unit amount: ${amount.toString()} - Too many decimal places`)
+    throw new Error(
+      `Invalid unit amount: ${amount.toString()} - Too many decimal places`
+    )
   }
   return baseUnitAmount
 }
 
 export async function delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms))
+}
+
+export const encodeAtomicizedSell = (
+  schemas: Interface[],
+  assets: Asset[],
+  address: string,
+  atomicizer: Interface,
+  target: string
+) => {
+  const { atomicizedCalldata, atomicizedReplacementPattern } =
+    encodeAtomicizedCalldata(
+      atomicizer,
+      schemas,
+      assets,
+      address,
+      OrderSide.Sell
+    )
+
+  return {
+    calldata: atomicizedCalldata,
+    replacementPattern: atomicizedReplacementPattern,
+    target,
+  }
+}
+
+export const encodeAtomicizedBuy = (
+  schemas: Interface[],
+  assets: Asset[],
+  address: string,
+  atomicizer: Interface,
+  target: string
+) => {
+  const { atomicizedCalldata, atomicizedReplacementPattern } =
+    encodeAtomicizedCalldata(
+      atomicizer,
+      schemas,
+      assets,
+      address,
+      OrderSide.Buy
+    )
+
+  return {
+    calldata: atomicizedCalldata,
+    replacementPattern: atomicizedReplacementPattern,
+    target,
+  }
+}
+
+// Helpers for atomicizer
+
+function encodeAtomicizedCalldata(
+  atomicizer: Interface,
+  schemas: Array<Interface>,
+  assets: Asset[],
+  address: string,
+  side: OrderSide
+) {
+  const encoder = side === OrderSide.Sell ? encodeSell : encodeBuy
+
+  try {
+    const transactions = assets.map((asset, i) => {
+      const schema = schemas[i]
+      const { target, calldata } = encoder(schema, asset, address)
+      return {
+        calldata,
+        abi: schema.getFunction('transfer'),
+        address: target,
+        value: new BigNumber(0),
+      }
+    })
+
+    const atomicizedCalldata = atomicizer.encodeFunctionData('atomicize', [
+      transactions.map((t) => t.address),
+      transactions.map((t) => t.value),
+      transactions.map((t) => new BigNumber((t.calldata.length - 2) / 2)), // subtract 2 for '0x'
+      transactions.map((t) => t.calldata).reduce((x, y) => x + y.slice(2)), // cut off the '0x'
+    ])
+
+    // const kind = side === OrderSide.Buy ? FunctionInputKind.Owner : undefined;
+    const kind = side === OrderSide.Buy ? [] : []
+
+    const atomicizedReplacementPattern = encodeAtomicizedReplacementPattern(
+      transactions.map((t) => t.abi),
+      kind
+    )
+
+    if (!atomicizedCalldata || !atomicizedReplacementPattern) {
+      throw new Error(
+        `Invalid calldata: ${atomicizedCalldata}, ${atomicizedReplacementPattern}`
+      )
+    }
+    return {
+      atomicizedCalldata,
+      atomicizedReplacementPattern,
+    }
+  } catch (error) {
+    console.error({ schemas, assets, address, side })
+    throw new Error(
+      `Failed to construct your order: likely something strange about this type of`
+      +`item. OpenSea has been notified. Please contact us in Discord! Original error: {error}`
+    )
+  }
+}
+
+/**
+ * Encodes the atomicized replacementPattern for a supplied ABI and replace kind
+ * @param   abis array of AnnotatedFunctionABI
+ * @param   replaceKind Parameter kind to replace
+ * @return  The resulting encoded replacementPattern
+ */
+export const encodeAtomicizedReplacementPattern = (
+  abis: FunctionFragment[],
+  replaceKind: boolean[]
+): string => {
+  const allowReplaceByte = '1'
+  const doNotAllowReplaceByte = '0'
+  /* Four bytes for method ID. */
+  const maskArr: string[] = [
+    doNotAllowReplaceByte,
+    doNotAllowReplaceByte,
+    doNotAllowReplaceByte,
+    doNotAllowReplaceByte,
+  ]
+  return ''
 }

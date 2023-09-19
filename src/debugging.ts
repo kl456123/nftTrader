@@ -16,7 +16,11 @@ function canSettleOrder(listingTime: number, expirationTime: number): boolean {
  */
 export async function requireOrdersCanMatch(
   client: WyvernExchangeWithBulkCancellations,
-  { buy, sell, accountAddress }: { buy: Order; sell: Order; accountAddress: string }
+  {
+    buy,
+    sell,
+    accountAddress,
+  }: { buy: Order; sell: Order; accountAddress: string }
 ) {
   const result = await client.ordersCanMatch_(
     [
@@ -55,7 +59,16 @@ export async function requireOrdersCanMatch(
       sell.expirationTime.toFixed(0),
       sell.salt.toFixed(0),
     ],
-    [buy.feeMethod, buy.side, buy.saleKind, buy.howToCall, sell.feeMethod, sell.side, sell.saleKind, sell.howToCall],
+    [
+      buy.feeMethod,
+      buy.side,
+      buy.saleKind,
+      buy.howToCall,
+      sell.feeMethod,
+      sell.side,
+      sell.saleKind,
+      sell.howToCall,
+    ],
     buy.calldata,
     sell.calldata,
     buy.replacementPattern,

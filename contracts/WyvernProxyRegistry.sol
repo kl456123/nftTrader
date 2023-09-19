@@ -8,7 +8,10 @@ contract Ownable {
     address public owner;
 
     event OwnershipRenounced(address indexed previousOwner);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev The Ownable constructor sets the original `owner` of the contract to the sender
@@ -56,7 +59,10 @@ contract ERC20Basic {
 }
 
 contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
+    function allowance(address owner, address spender)
+        public
+        view
+        returns (uint256);
 
     function transferFrom(
         address from,
@@ -66,12 +72,21 @@ contract ERC20 is ERC20Basic {
 
     function approve(address spender, uint256 value) public returns (bool);
 
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 contract TokenRecipient {
     event ReceivedEther(address indexed sender, uint256 amount);
-    event ReceivedTokens(address indexed from, uint256 value, address indexed token, bytes extraData);
+    event ReceivedTokens(
+        address indexed from,
+        uint256 value,
+        address indexed token,
+        bytes extraData
+    );
 
     /**
      * @dev Receive tokens and generate a log event
@@ -137,7 +152,11 @@ contract ProxyRegistry is Ownable {
      * @param addr Address to which to grant permissions
      */
     function endGrantAuthentication(address addr) public onlyOwner {
-        require(!contracts[addr] && pending[addr] != 0 && ((pending[addr] + DELAY_PERIOD) < now));
+        require(
+            !contracts[addr] &&
+                pending[addr] != 0 &&
+                ((pending[addr] + DELAY_PERIOD) < now)
+        );
         pending[addr] = 0;
         contracts[addr] = true;
     }
@@ -163,7 +182,11 @@ contract ProxyRegistry is Ownable {
         proxy = new OwnableDelegateProxy(
             msg.sender,
             delegateProxyImplementation,
-            abi.encodeWithSignature('initialize(address,address)', msg.sender, address(this))
+            abi.encodeWithSignature(
+                'initialize(address,address)',
+                msg.sender,
+                address(this)
+            )
         );
         proxies[msg.sender] = proxy;
         return proxy;
@@ -293,7 +316,9 @@ contract AuthenticatedProxy is TokenRecipient, OwnedUpgradeabilityStorage {
         HowToCall howToCall,
         bytes calldata
     ) public returns (bool result) {
-        require(msg.sender == user || (!revoked && registry.contracts(msg.sender)));
+        require(
+            msg.sender == user || (!revoked && registry.contracts(msg.sender))
+        );
         if (howToCall == HowToCall.Call) {
             result = dest.call(calldata);
         } else if (howToCall == HowToCall.DelegateCall) {
@@ -423,7 +448,11 @@ contract OwnedUpgradeabilityProxy is Proxy, OwnedUpgradeabilityStorage {
      * @param data represents the msg.data to bet sent in the low level call. This parameter may include the function
      * signature of the implementation to be called with the needed payload
      */
-    function upgradeToAndCall(address implementation, bytes data) public payable onlyProxyOwner {
+    function upgradeToAndCall(address implementation, bytes data)
+        public
+        payable
+        onlyProxyOwner
+    {
         upgradeTo(implementation);
         require(address(this).delegatecall(data));
     }

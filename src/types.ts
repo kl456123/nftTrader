@@ -129,7 +129,9 @@ export interface ExchangeMetadataForBundle {
   bundle: Bundle
   referrerAddress?: string
 }
-export type ExchangeMetadata = ExchangeMetadataForAsset | ExchangeMetadataForBundle
+export type ExchangeMetadata =
+  | ExchangeMetadataForAsset
+  | ExchangeMetadataForBundle
 
 export interface OrderJSON extends Partial<ECSignature> {
   // Base wyvern fields
@@ -212,11 +214,33 @@ export interface ComputedFees extends ProtocolFees {
 
 export type RawOrderJSON = Omit<
   OrderJSON,
-  'makerReferrerFee' | 'quantity' | 'createdTime' | 'metadata' | 'hash' | 'v' | 'r' | 's'
+  | 'makerReferrerFee'
+  | 'quantity'
+  | 'createdTime'
+  | 'metadata'
+  | 'hash'
+  | 'v'
+  | 'r'
+  | 's'
 >
 
 export type AtomicMatchParameters = [
-  [string, string, string, string, string, string, string, string, string, string, string, string, string, string],
+  [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string
+  ],
   [
     BigNumberish,
     BigNumberish,
@@ -237,7 +261,16 @@ export type AtomicMatchParameters = [
     BigNumberish,
     BigNumberish
   ],
-  [BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish],
+  [
+    BigNumberish,
+    BigNumberish,
+    BigNumberish,
+    BigNumberish,
+    BigNumberish,
+    BigNumberish,
+    BigNumberish,
+    BigNumberish
+  ],
   BytesLike,
   BytesLike,
   BytesLike,

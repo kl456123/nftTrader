@@ -27,19 +27,38 @@ export class ContractsWrapper {
   public multicall: Multicall
   public gemSwap: GemSwap
   public conveter: ethers.utils.Interface
-  constructor(protected network: Network, protected provider: ethers.providers.BaseProvider) {
+  constructor(
+    protected network: Network,
+    protected provider: ethers.providers.BaseProvider
+  ) {
     const addressbook = addressesByNetwork[this.network]!
     const aggregatorAddresses = aggregatorByNetwork[this.network]!
-    this.wyvernExchangeBulkCancellations = WyvernExchangeWithBulkCancellations__factory.connect(
-      addressbook.exchangev2,
+    this.wyvernExchangeBulkCancellations =
+      WyvernExchangeWithBulkCancellations__factory.connect(
+        addressbook.exchangev2,
+        provider
+      )
+    this.tokenTransferProxy = WyvernTokenTransferProxy__factory.connect(
+      addressbook.tokenTransferProxy,
       provider
     )
-    this.tokenTransferProxy = WyvernTokenTransferProxy__factory.connect(addressbook.tokenTransferProxy, provider)
-    this.merkleValidator = MerkleValidator__factory.connect(addressbook.validator, provider)
-    this.wyvernProxyRegistry = WyvernProxyRegistry__factory.connect(addressbook.registry, provider)
-    this.atomicizer = WyvernAtomicizer__factory.connect(addressbook.atomicizer, provider)
+    this.merkleValidator = MerkleValidator__factory.connect(
+      addressbook.validator,
+      provider
+    )
+    this.wyvernProxyRegistry = WyvernProxyRegistry__factory.connect(
+      addressbook.registry,
+      provider
+    )
+    this.atomicizer = WyvernAtomicizer__factory.connect(
+      addressbook.atomicizer,
+      provider
+    )
     this.multicall = Multicall__factory.connect(addressbook.multicall, provider)
-    this.gemSwap = GemSwap__factory.connect(aggregatorAddresses.gemSwap, provider)
+    this.gemSwap = GemSwap__factory.connect(
+      aggregatorAddresses.gemSwap,
+      provider
+    )
     this.conveter = new ethers.utils.Interface([
       'function ethToWeth(address weth, uint256 amount)',
       'function wethToEth(address weth, uint256 amount)',

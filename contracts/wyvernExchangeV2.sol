@@ -49,7 +49,10 @@ contract Ownable {
     address public owner;
 
     event OwnershipRenounced(address indexed previousOwner);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev The Ownable constructor sets the original `owner` of the contract to the sender
@@ -97,7 +100,10 @@ contract ERC20Basic {
 }
 
 contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
+    function allowance(address owner, address spender)
+        public
+        view
+        returns (uint256);
 
     function transferFrom(
         address from,
@@ -107,7 +113,11 @@ contract ERC20 is ERC20Basic {
 
     function approve(address spender, uint256 value) public returns (bool);
 
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 library ArrayUtils {
@@ -168,7 +178,9 @@ library ArrayUtils {
             /* If the byte array is shorter than a word, we must unfortunately do the whole thing bytewise.
                (bounds checks could still probably be optimized away in assembly, but this is a rare case) */
             for (i = index; i < array.length; i++) {
-                array[i] = ((mask[i] ^ 0xff) & array[i]) | (mask[i] & desired[i]);
+                array[i] =
+                    ((mask[i] ^ 0xff) & array[i]) |
+                    (mask[i] & desired[i]);
             }
         }
     }
@@ -179,7 +191,11 @@ library ArrayUtils {
      * @param b Second array
      * @return Whether or not all bytes in the arrays are equal
      */
-    function arrayEq(bytes memory a, bytes memory b) internal pure returns (bool) {
+    function arrayEq(bytes memory a, bytes memory b)
+        internal
+        pure
+        returns (bool)
+    {
         return keccak256(a) == keccak256(b);
     }
 
@@ -190,7 +206,11 @@ library ArrayUtils {
      * @param source Byte array to write
      * @return End memory index
      */
-    function unsafeWriteBytes(uint256 index, bytes source) internal pure returns (uint256) {
+    function unsafeWriteBytes(uint256 index, bytes source)
+        internal
+        pure
+        returns (uint256)
+    {
         if (source.length > 0) {
             assembly {
                 let length := mload(source)
@@ -218,7 +238,11 @@ library ArrayUtils {
      * @param source Address to write
      * @return End memory index
      */
-    function unsafeWriteAddress(uint256 index, address source) internal pure returns (uint256) {
+    function unsafeWriteAddress(uint256 index, address source)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 conv = uint256(source) << 0x60;
         assembly {
             mstore(index, conv)
@@ -234,7 +258,11 @@ library ArrayUtils {
      * @param source uint to write
      * @return End memory index
      */
-    function unsafeWriteAddressWord(uint256 index, address source) internal pure returns (uint256) {
+    function unsafeWriteAddressWord(uint256 index, address source)
+        internal
+        pure
+        returns (uint256)
+    {
         assembly {
             mstore(index, source)
             index := add(index, 0x20)
@@ -249,7 +277,11 @@ library ArrayUtils {
      * @param source uint to write
      * @return End memory index
      */
-    function unsafeWriteUint(uint256 index, uint256 source) internal pure returns (uint256) {
+    function unsafeWriteUint(uint256 index, uint256 source)
+        internal
+        pure
+        returns (uint256)
+    {
         assembly {
             mstore(index, source)
             index := add(index, 0x20)
@@ -264,7 +296,11 @@ library ArrayUtils {
      * @param source uint8 to write
      * @return End memory index
      */
-    function unsafeWriteUint8(uint256 index, uint8 source) internal pure returns (uint256) {
+    function unsafeWriteUint8(uint256 index, uint8 source)
+        internal
+        pure
+        returns (uint256)
+    {
         assembly {
             mstore8(index, source)
             index := add(index, 0x1)
@@ -279,7 +315,11 @@ library ArrayUtils {
      * @param source uint to write
      * @return End memory index
      */
-    function unsafeWriteUint8Word(uint256 index, uint8 source) internal pure returns (uint256) {
+    function unsafeWriteUint8Word(uint256 index, uint8 source)
+        internal
+        pure
+        returns (uint256)
+    {
         assembly {
             mstore(index, source)
             index := add(index, 0x20)
@@ -294,7 +334,11 @@ library ArrayUtils {
      * @param source uint to write
      * @return End memory index
      */
-    function unsafeWriteBytes32(uint256 index, bytes32 source) internal pure returns (uint256) {
+    function unsafeWriteBytes32(uint256 index, bytes32 source)
+        internal
+        pure
+        returns (uint256)
+    {
         assembly {
             mstore(index, source)
             index := add(index, 0x20)
@@ -319,7 +363,12 @@ contract ReentrancyGuarded {
 
 contract TokenRecipient {
     event ReceivedEther(address indexed sender, uint256 amount);
-    event ReceivedTokens(address indexed from, uint256 value, address indexed token, bytes extraData);
+    event ReceivedTokens(
+        address indexed from,
+        uint256 value,
+        address indexed token,
+        bytes extraData
+    );
 
     /**
      * @dev Receive tokens and generate a log event
@@ -354,9 +403,12 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
     // NOTE: these hashes are derived and verified in the constructor.
     bytes32 private constant _EIP_712_DOMAIN_TYPEHASH =
         0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
-    bytes32 private constant _NAME_HASH = 0x9a2ed463836165738cfa54208ff6e7847fd08cbaac309aac057086cb0a144d13;
-    bytes32 private constant _VERSION_HASH = 0xe2fd538c762ee69cab09ccd70e2438075b7004dd87577dc3937e9fcc8174bb64;
-    bytes32 private constant _ORDER_TYPEHASH = 0xdba08a88a748f356e8faf8578488343eab21b1741728779c9dcfdc782bc800f8;
+    bytes32 private constant _NAME_HASH =
+        0x9a2ed463836165738cfa54208ff6e7847fd08cbaac309aac057086cb0a144d13;
+    bytes32 private constant _VERSION_HASH =
+        0xe2fd538c762ee69cab09ccd70e2438075b7004dd87577dc3937e9fcc8174bb64;
+    bytes32 private constant _ORDER_TYPEHASH =
+        0xdba08a88a748f356e8faf8578488343eab21b1741728779c9dcfdc782bc800f8;
 
     bytes4 private constant _EIP_1271_MAGIC_VALUE = 0x1626ba7e;
 
@@ -367,7 +419,8 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
     uint256 private constant _CHAIN_ID = 4;
 
     // Note: the domain separator is derived and verified in the constructor. */
-    bytes32 public constant DOMAIN_SEPARATOR = 0x565c706ea9f14d3032f2b525a3e1b6f62cb4037af8e8c9cd243cb6b5930627bf;
+    bytes32 public constant DOMAIN_SEPARATOR =
+        0x565c706ea9f14d3032f2b525a3e1b6f62cb4037af8e8c9cd243cb6b5930627bf;
 
     /* The token used to pay exchange fees. */
     ERC20 public exchangeToken;
@@ -513,8 +566,9 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
 
     constructor() public {
         require(
-            keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)') ==
-                _EIP_712_DOMAIN_TYPEHASH
+            keccak256(
+                'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+            ) == _EIP_712_DOMAIN_TYPEHASH
         );
         require(keccak256(bytes(name)) == _NAME_HASH);
         require(keccak256(bytes(version)) == _VERSION_HASH);
@@ -556,7 +610,10 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @dev Change the minimum maker fee paid to the protocol (owner only)
      * @param newMinimumMakerProtocolFee New fee to set in basis points
      */
-    function changeMinimumMakerProtocolFee(uint256 newMinimumMakerProtocolFee) public onlyOwner {
+    function changeMinimumMakerProtocolFee(uint256 newMinimumMakerProtocolFee)
+        public
+        onlyOwner
+    {
         minimumMakerProtocolFee = newMinimumMakerProtocolFee;
     }
 
@@ -564,7 +621,10 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @dev Change the minimum taker fee paid to the protocol (owner only)
      * @param newMinimumTakerProtocolFee New fee to set in basis points
      */
-    function changeMinimumTakerProtocolFee(uint256 newMinimumTakerProtocolFee) public onlyOwner {
+    function changeMinimumTakerProtocolFee(uint256 newMinimumTakerProtocolFee)
+        public
+        onlyOwner
+    {
         minimumTakerProtocolFee = newMinimumTakerProtocolFee;
     }
 
@@ -572,7 +632,10 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @dev Change the protocol fee recipient (owner only)
      * @param newProtocolFeeRecipient New protocol fee recipient address
      */
-    function changeProtocolFeeRecipient(address newProtocolFeeRecipient) public onlyOwner {
+    function changeProtocolFeeRecipient(address newProtocolFeeRecipient)
+        public
+        onlyOwner
+    {
         protocolFeeRecipient = newProtocolFeeRecipient;
     }
 
@@ -628,7 +691,14 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
         index = ArrayUtils.unsafeWriteBytes(index, extradata);
         ArrayUtils.unsafeWriteBytes(index, calldata);
         assembly {
-            result := staticcall(gas, target, add(combined, 0x20), mload(combined), mload(0x40), 0)
+            result := staticcall(
+                gas,
+                target,
+                add(combined, 0x20),
+                mload(combined),
+                mload(0x40),
+                0
+            )
         }
         return result;
     }
@@ -639,7 +709,11 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param nonce maker nonce to hash
      * @return Hash of order
      */
-    function hashOrder(Order memory order, uint256 nonce) internal pure returns (bytes32 hash) {
+    function hashOrder(Order memory order, uint256 nonce)
+        internal
+        pure
+        returns (bytes32 hash)
+    {
         /* Unfortunately abi.encodePacked doesn't work here, stack size constraints. */
         uint256 size = 800;
         bytes memory array = new bytes(size);
@@ -662,9 +736,15 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
         index = ArrayUtils.unsafeWriteAddressWord(index, order.target);
         index = ArrayUtils.unsafeWriteUint8Word(index, uint8(order.howToCall));
         index = ArrayUtils.unsafeWriteBytes32(index, keccak256(order.calldata));
-        index = ArrayUtils.unsafeWriteBytes32(index, keccak256(order.replacementPattern));
+        index = ArrayUtils.unsafeWriteBytes32(
+            index,
+            keccak256(order.replacementPattern)
+        );
         index = ArrayUtils.unsafeWriteAddressWord(index, order.staticTarget);
-        index = ArrayUtils.unsafeWriteBytes32(index, keccak256(order.staticExtradata));
+        index = ArrayUtils.unsafeWriteBytes32(
+            index,
+            keccak256(order.staticExtradata)
+        );
         index = ArrayUtils.unsafeWriteAddressWord(index, order.paymentToken);
         index = ArrayUtils.unsafeWriteUint(index, order.basePrice);
         index = ArrayUtils.unsafeWriteUint(index, order.extra);
@@ -684,8 +764,19 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param nonce Nonce to hash
      * @return Hash of message prefix and order hash per Ethereum format
      */
-    function hashToSign(Order memory order, uint256 nonce) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked('\x19\x01', DOMAIN_SEPARATOR, hashOrder(order, nonce)));
+    function hashToSign(Order memory order, uint256 nonce)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encodePacked(
+                    '\x19\x01',
+                    DOMAIN_SEPARATOR,
+                    hashOrder(order, nonce)
+                )
+            );
     }
 
     /**
@@ -708,7 +799,11 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @dev Validate order parameters (does *not* check signature validity)
      * @param order Order to validate
      */
-    function validateOrderParameters(Order memory order) internal view returns (bool) {
+    function validateOrderParameters(Order memory order)
+        internal
+        view
+        returns (bool)
+    {
         /* Order must be targeted at this protocol version (this Exchange contract). */
         if (order.exchange != address(this)) {
             return false;
@@ -720,14 +815,20 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
         }
 
         /* Order must possess valid sale kind parameter combination. */
-        if (!SaleKindInterface.validateParameters(order.saleKind, order.expirationTime)) {
+        if (
+            !SaleKindInterface.validateParameters(
+                order.saleKind,
+                order.expirationTime
+            )
+        ) {
             return false;
         }
 
         /* If using the split fee method, order must have sufficient protocol fees. */
         if (
             order.feeMethod == FeeMethod.SplitFee &&
-            (order.makerProtocolFee < minimumMakerProtocolFee || order.takerProtocolFee < minimumTakerProtocolFee)
+            (order.makerProtocolFee < minimumMakerProtocolFee ||
+                order.takerProtocolFee < minimumTakerProtocolFee)
         ) {
             return false;
         }
@@ -765,7 +866,10 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
         }
 
         /* Prevent signature malleability and non-standard v values. */
-        if (uint256(sig.s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+        if (
+            uint256(sig.s) >
+            0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
+        ) {
             return false;
         }
         if (sig.v != 27 && sig.v != 28) {
@@ -837,7 +941,9 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param order Order to approve
      * @param orderbookInclusionDesired Whether orderbook providers should include the order in their orderbooks
      */
-    function approveOrder(Order memory order, bool orderbookInclusionDesired) internal {
+    function approveOrder(Order memory order, bool orderbookInclusionDesired)
+        internal
+    {
         /* CHECKS */
 
         /* Assert sender is authorized to approve order. */
@@ -924,7 +1030,11 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param order Order to calculate the price of
      * @return The current price of the order
      */
-    function calculateCurrentPrice(Order memory order) internal view returns (uint256) {
+    function calculateCurrentPrice(Order memory order)
+        internal
+        view
+        returns (uint256)
+    {
         return
             SaleKindInterface.calculateFinalPrice(
                 order.side,
@@ -942,7 +1052,11 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param sell Sell-side order
      * @return Match price
      */
-    function calculateMatchPrice(Order memory buy, Order memory sell) internal view returns (uint256) {
+    function calculateMatchPrice(Order memory buy, Order memory sell)
+        internal
+        view
+        returns (uint256)
+    {
         /* Calculate sell price. */
         uint256 sellPrice = SaleKindInterface.calculateFinalPrice(
             sell.side,
@@ -975,7 +1089,10 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param buy Buy-side order
      * @param sell Sell-side order
      */
-    function executeFundsTransfer(Order memory buy, Order memory sell) internal returns (uint256) {
+    function executeFundsTransfer(Order memory buy, Order memory sell)
+        internal
+        returns (uint256)
+    {
         /* Only payable in the special case of unwrapped Ether. */
         if (sell.paymentToken != address(0)) {
             require(msg.value == 0);
@@ -1014,10 +1131,18 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
                         INVERSE_BASIS_POINT
                     );
                     if (sell.paymentToken == address(0)) {
-                        receiveAmount = SafeMath.sub(receiveAmount, makerRelayerFee);
+                        receiveAmount = SafeMath.sub(
+                            receiveAmount,
+                            makerRelayerFee
+                        );
                         sell.feeRecipient.transfer(makerRelayerFee);
                     } else {
-                        transferTokens(sell.paymentToken, sell.maker, sell.feeRecipient, makerRelayerFee);
+                        transferTokens(
+                            sell.paymentToken,
+                            sell.maker,
+                            sell.feeRecipient,
+                            makerRelayerFee
+                        );
                     }
                 }
 
@@ -1027,10 +1152,18 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
                         INVERSE_BASIS_POINT
                     );
                     if (sell.paymentToken == address(0)) {
-                        requiredAmount = SafeMath.add(requiredAmount, takerRelayerFee);
+                        requiredAmount = SafeMath.add(
+                            requiredAmount,
+                            takerRelayerFee
+                        );
                         sell.feeRecipient.transfer(takerRelayerFee);
                     } else {
-                        transferTokens(sell.paymentToken, buy.maker, sell.feeRecipient, takerRelayerFee);
+                        transferTokens(
+                            sell.paymentToken,
+                            buy.maker,
+                            sell.feeRecipient,
+                            takerRelayerFee
+                        );
                     }
                 }
 
@@ -1040,10 +1173,18 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
                         INVERSE_BASIS_POINT
                     );
                     if (sell.paymentToken == address(0)) {
-                        receiveAmount = SafeMath.sub(receiveAmount, makerProtocolFee);
+                        receiveAmount = SafeMath.sub(
+                            receiveAmount,
+                            makerProtocolFee
+                        );
                         protocolFeeRecipient.transfer(makerProtocolFee);
                     } else {
-                        transferTokens(sell.paymentToken, sell.maker, protocolFeeRecipient, makerProtocolFee);
+                        transferTokens(
+                            sell.paymentToken,
+                            sell.maker,
+                            protocolFeeRecipient,
+                            makerProtocolFee
+                        );
                     }
                 }
 
@@ -1053,18 +1194,34 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
                         INVERSE_BASIS_POINT
                     );
                     if (sell.paymentToken == address(0)) {
-                        requiredAmount = SafeMath.add(requiredAmount, takerProtocolFee);
+                        requiredAmount = SafeMath.add(
+                            requiredAmount,
+                            takerProtocolFee
+                        );
                         protocolFeeRecipient.transfer(takerProtocolFee);
                     } else {
-                        transferTokens(sell.paymentToken, buy.maker, protocolFeeRecipient, takerProtocolFee);
+                        transferTokens(
+                            sell.paymentToken,
+                            buy.maker,
+                            protocolFeeRecipient,
+                            takerProtocolFee
+                        );
                     }
                 }
             } else {
                 /* Charge maker fee to seller. */
-                chargeProtocolFee(sell.maker, sell.feeRecipient, sell.makerRelayerFee);
+                chargeProtocolFee(
+                    sell.maker,
+                    sell.feeRecipient,
+                    sell.makerRelayerFee
+                );
 
                 /* Charge taker fee to buyer. */
-                chargeProtocolFee(buy.maker, sell.feeRecipient, sell.takerRelayerFee);
+                chargeProtocolFee(
+                    buy.maker,
+                    sell.feeRecipient,
+                    sell.takerRelayerFee
+                );
             }
         } else {
             /* Buy-side order is maker. */
@@ -1080,30 +1237,70 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
                 require(buy.takerProtocolFee <= sell.takerProtocolFee);
 
                 if (buy.makerRelayerFee > 0) {
-                    makerRelayerFee = SafeMath.div(SafeMath.mul(buy.makerRelayerFee, price), INVERSE_BASIS_POINT);
-                    transferTokens(sell.paymentToken, buy.maker, buy.feeRecipient, makerRelayerFee);
+                    makerRelayerFee = SafeMath.div(
+                        SafeMath.mul(buy.makerRelayerFee, price),
+                        INVERSE_BASIS_POINT
+                    );
+                    transferTokens(
+                        sell.paymentToken,
+                        buy.maker,
+                        buy.feeRecipient,
+                        makerRelayerFee
+                    );
                 }
 
                 if (buy.takerRelayerFee > 0) {
-                    takerRelayerFee = SafeMath.div(SafeMath.mul(buy.takerRelayerFee, price), INVERSE_BASIS_POINT);
-                    transferTokens(sell.paymentToken, sell.maker, buy.feeRecipient, takerRelayerFee);
+                    takerRelayerFee = SafeMath.div(
+                        SafeMath.mul(buy.takerRelayerFee, price),
+                        INVERSE_BASIS_POINT
+                    );
+                    transferTokens(
+                        sell.paymentToken,
+                        sell.maker,
+                        buy.feeRecipient,
+                        takerRelayerFee
+                    );
                 }
 
                 if (buy.makerProtocolFee > 0) {
-                    makerProtocolFee = SafeMath.div(SafeMath.mul(buy.makerProtocolFee, price), INVERSE_BASIS_POINT);
-                    transferTokens(sell.paymentToken, buy.maker, protocolFeeRecipient, makerProtocolFee);
+                    makerProtocolFee = SafeMath.div(
+                        SafeMath.mul(buy.makerProtocolFee, price),
+                        INVERSE_BASIS_POINT
+                    );
+                    transferTokens(
+                        sell.paymentToken,
+                        buy.maker,
+                        protocolFeeRecipient,
+                        makerProtocolFee
+                    );
                 }
 
                 if (buy.takerProtocolFee > 0) {
-                    takerProtocolFee = SafeMath.div(SafeMath.mul(buy.takerProtocolFee, price), INVERSE_BASIS_POINT);
-                    transferTokens(sell.paymentToken, sell.maker, protocolFeeRecipient, takerProtocolFee);
+                    takerProtocolFee = SafeMath.div(
+                        SafeMath.mul(buy.takerProtocolFee, price),
+                        INVERSE_BASIS_POINT
+                    );
+                    transferTokens(
+                        sell.paymentToken,
+                        sell.maker,
+                        protocolFeeRecipient,
+                        takerProtocolFee
+                    );
                 }
             } else {
                 /* Charge maker fee to buyer. */
-                chargeProtocolFee(buy.maker, buy.feeRecipient, buy.makerRelayerFee);
+                chargeProtocolFee(
+                    buy.maker,
+                    buy.feeRecipient,
+                    buy.makerRelayerFee
+                );
 
                 /* Charge taker fee to seller. */
-                chargeProtocolFee(sell.maker, buy.feeRecipient, buy.takerRelayerFee);
+                chargeProtocolFee(
+                    sell.maker,
+                    buy.feeRecipient,
+                    buy.takerRelayerFee
+                );
             }
         }
 
@@ -1129,9 +1326,14 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
      * @param sell Sell-side order
      * @return Whether or not the two orders can be matched
      */
-    function ordersCanMatch(Order memory buy, Order memory sell) internal view returns (bool) {
+    function ordersCanMatch(Order memory buy, Order memory sell)
+        internal
+        view
+        returns (bool)
+    {
         return (/* Must be opposite-side. */
-        (buy.side == SaleKindInterface.Side.Buy && sell.side == SaleKindInterface.Side.Sell) &&
+        (buy.side == SaleKindInterface.Side.Buy &&
+            sell.side == SaleKindInterface.Side.Sell) &&
             /* Must use same fee method. */
             (buy.feeMethod == sell.feeMethod) &&
             /* Must use same payment token. */
@@ -1140,16 +1342,24 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
             (sell.taker == address(0) || sell.taker == buy.maker) &&
             (buy.taker == address(0) || buy.taker == sell.maker) &&
             /* One must be maker and the other must be taker (no bool XOR in Solidity). */
-            ((sell.feeRecipient == address(0) && buy.feeRecipient != address(0)) ||
-                (sell.feeRecipient != address(0) && buy.feeRecipient == address(0))) &&
+            ((sell.feeRecipient == address(0) &&
+                buy.feeRecipient != address(0)) ||
+                (sell.feeRecipient != address(0) &&
+                    buy.feeRecipient == address(0))) &&
             /* Must match target. */
             (buy.target == sell.target) &&
             /* Must match howToCall. */
             (buy.howToCall == sell.howToCall) &&
             /* Buy-side order must be settleable. */
-            SaleKindInterface.canSettleOrder(buy.listingTime, buy.expirationTime) &&
+            SaleKindInterface.canSettleOrder(
+                buy.listingTime,
+                buy.expirationTime
+            ) &&
             /* Sell-side order must be settleable. */
-            SaleKindInterface.canSettleOrder(sell.listingTime, sell.expirationTime));
+            SaleKindInterface.canSettleOrder(
+                sell.listingTime,
+                sell.expirationTime
+            ));
     }
 
     /**
@@ -1197,10 +1407,18 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
 
         /* Must match calldata after replacement, if specified. */
         if (buy.replacementPattern.length > 0) {
-            ArrayUtils.guardedArrayReplace(buy.calldata, sell.calldata, buy.replacementPattern);
+            ArrayUtils.guardedArrayReplace(
+                buy.calldata,
+                sell.calldata,
+                buy.replacementPattern
+            );
         }
         if (sell.replacementPattern.length > 0) {
-            ArrayUtils.guardedArrayReplace(sell.calldata, buy.calldata, sell.replacementPattern);
+            ArrayUtils.guardedArrayReplace(
+                sell.calldata,
+                buy.calldata,
+                sell.replacementPattern
+            );
         }
         require(ArrayUtils.arrayEq(buy.calldata, sell.calldata));
 
@@ -1229,7 +1447,10 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
         uint256 price = executeFundsTransfer(buy, sell);
 
         /* Assert implementation. */
-        require(delegateProxy.implementation() == registry.delegateProxyImplementation());
+        require(
+            delegateProxy.implementation() ==
+                registry.delegateProxyImplementation()
+        );
 
         /* Execute specified call through proxy. */
         require(proxy.proxy(sell.target, sell.howToCall, sell.calldata));
@@ -1238,12 +1459,20 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
 
         /* Handle buy-side static call if specified. */
         if (buy.staticTarget != address(0)) {
-            require(staticCall(buy.staticTarget, sell.calldata, buy.staticExtradata));
+            require(
+                staticCall(buy.staticTarget, sell.calldata, buy.staticExtradata)
+            );
         }
 
         /* Handle sell-side static call if specified. */
         if (sell.staticTarget != address(0)) {
-            require(staticCall(sell.staticTarget, sell.calldata, sell.staticExtradata));
+            require(
+                staticCall(
+                    sell.staticTarget,
+                    sell.calldata,
+                    sell.staticExtradata
+                )
+            );
         }
 
         /* Log match event. */
@@ -1257,7 +1486,11 @@ contract ExchangeCore is ReentrancyGuarded, Ownable {
         );
     }
 
-    function _requireValidOrderWithNonce(Order memory order, Sig memory sig) internal view returns (bytes32) {
+    function _requireValidOrderWithNonce(Order memory order, Sig memory sig)
+        internal
+        view
+        returns (bytes32)
+    {
         return requireValidOrder(order, sig, nonces[order.maker]);
     }
 }
@@ -1286,7 +1519,15 @@ contract Exchange is ExchangeCore {
         uint256 listingTime,
         uint256 expirationTime
     ) public view returns (uint256) {
-        return SaleKindInterface.calculateFinalPrice(side, saleKind, basePrice, extra, listingTime, expirationTime);
+        return
+            SaleKindInterface.calculateFinalPrice(
+                side,
+                saleKind,
+                basePrice,
+                extra,
+                listingTime,
+                expirationTime
+            );
     }
 
     /**
@@ -1463,7 +1704,12 @@ contract Exchange is ExchangeCore {
             uints[7],
             uints[8]
         );
-        return validateOrder(hashToSign(order, nonces[order.maker]), order, Sig(v, r, s));
+        return
+            validateOrder(
+                hashToSign(order, nonces[order.maker]),
+                order,
+                Sig(v, r, s)
+            );
     }
 
     /**
@@ -1727,10 +1973,18 @@ contract Exchange is ExchangeCore {
         bytes sellReplacementPattern
     ) public pure returns (bool) {
         if (buyReplacementPattern.length > 0) {
-            ArrayUtils.guardedArrayReplace(buyCalldata, sellCalldata, buyReplacementPattern);
+            ArrayUtils.guardedArrayReplace(
+                buyCalldata,
+                sellCalldata,
+                buyReplacementPattern
+            );
         }
         if (sellReplacementPattern.length > 0) {
-            ArrayUtils.guardedArrayReplace(sellCalldata, buyCalldata, sellReplacementPattern);
+            ArrayUtils.guardedArrayReplace(
+                sellCalldata,
+                buyCalldata,
+                sellReplacementPattern
+            );
         }
         return ArrayUtils.arrayEq(buyCalldata, sellCalldata);
     }
@@ -1831,9 +2085,13 @@ contract Exchange is ExchangeCore {
                     addrs[3],
                     FeeMethod(feeMethodsSidesKindsHowToCalls[0]),
                     SaleKindInterface.Side(feeMethodsSidesKindsHowToCalls[1]),
-                    SaleKindInterface.SaleKind(feeMethodsSidesKindsHowToCalls[2]),
+                    SaleKindInterface.SaleKind(
+                        feeMethodsSidesKindsHowToCalls[2]
+                    ),
                     addrs[4],
-                    AuthenticatedProxy.HowToCall(feeMethodsSidesKindsHowToCalls[3]),
+                    AuthenticatedProxy.HowToCall(
+                        feeMethodsSidesKindsHowToCalls[3]
+                    ),
                     calldataBuy,
                     replacementPatternBuy,
                     addrs[5],
@@ -1857,9 +2115,13 @@ contract Exchange is ExchangeCore {
                     addrs[10],
                     FeeMethod(feeMethodsSidesKindsHowToCalls[4]),
                     SaleKindInterface.Side(feeMethodsSidesKindsHowToCalls[5]),
-                    SaleKindInterface.SaleKind(feeMethodsSidesKindsHowToCalls[6]),
+                    SaleKindInterface.SaleKind(
+                        feeMethodsSidesKindsHowToCalls[6]
+                    ),
                     addrs[11],
-                    AuthenticatedProxy.HowToCall(feeMethodsSidesKindsHowToCalls[7]),
+                    AuthenticatedProxy.HowToCall(
+                        feeMethodsSidesKindsHowToCalls[7]
+                    ),
                     calldataSell,
                     replacementPatternSell,
                     addrs[12],
@@ -1924,7 +2186,11 @@ library SaleKindInterface {
      * @param expirationTime Order expiration time
      * @return Whether the parameters were valid
      */
-    function validateParameters(SaleKind saleKind, uint256 expirationTime) internal pure returns (bool) {
+    function validateParameters(SaleKind saleKind, uint256 expirationTime)
+        internal
+        pure
+        returns (bool)
+    {
         /* Auctions must have a set expiration date. */
         return (saleKind == SaleKind.FixedPrice || expirationTime > 0);
     }
@@ -1935,8 +2201,14 @@ library SaleKindInterface {
      * @param listingTime Order listing time
      * @param expirationTime Order expiration time
      */
-    function canSettleOrder(uint256 listingTime, uint256 expirationTime) internal view returns (bool) {
-        return (listingTime < now) && (expirationTime == 0 || now < expirationTime);
+    function canSettleOrder(uint256 listingTime, uint256 expirationTime)
+        internal
+        view
+        returns (bool)
+    {
+        return
+            (listingTime < now) &&
+            (expirationTime == 0 || now < expirationTime);
     }
 
     /**
@@ -2013,7 +2285,11 @@ contract ProxyRegistry is Ownable {
      * @param addr Address to which to grant permissions
      */
     function endGrantAuthentication(address addr) public onlyOwner {
-        require(!contracts[addr] && pending[addr] != 0 && ((pending[addr] + DELAY_PERIOD) < now));
+        require(
+            !contracts[addr] &&
+                pending[addr] != 0 &&
+                ((pending[addr] + DELAY_PERIOD) < now)
+        );
         pending[addr] = 0;
         contracts[addr] = true;
     }
@@ -2039,7 +2315,11 @@ contract ProxyRegistry is Ownable {
         proxy = new OwnableDelegateProxy(
             msg.sender,
             delegateProxyImplementation,
-            abi.encodeWithSignature('initialize(address,address)', msg.sender, address(this))
+            abi.encodeWithSignature(
+                'initialize(address,address)',
+                msg.sender,
+                address(this)
+            )
         );
         proxies[msg.sender] = proxy;
         return proxy;
@@ -2170,7 +2450,9 @@ contract AuthenticatedProxy is TokenRecipient, OwnedUpgradeabilityStorage {
         HowToCall howToCall,
         bytes calldata
     ) public returns (bool result) {
-        require(msg.sender == user || (!revoked && registry.contracts(msg.sender)));
+        require(
+            msg.sender == user || (!revoked && registry.contracts(msg.sender))
+        );
         if (howToCall == HowToCall.Call) {
             result = dest.call(calldata);
         } else if (howToCall == HowToCall.DelegateCall) {
@@ -2300,7 +2582,11 @@ contract OwnedUpgradeabilityProxy is Proxy, OwnedUpgradeabilityStorage {
      * @param data represents the msg.data to bet sent in the low level call. This parameter may include the function
      * signature of the implementation to be called with the needed payload
      */
-    function upgradeToAndCall(address implementation, bytes data) public payable onlyProxyOwner {
+    function upgradeToAndCall(address implementation, bytes data)
+        public
+        payable
+        onlyProxyOwner
+    {
         upgradeTo(implementation);
         require(address(this).delegatecall(data));
     }

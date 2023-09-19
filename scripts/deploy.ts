@@ -30,13 +30,19 @@ async function main() {
   await mockToken.deployed()
   console.log('MockToken deployed to:', mockToken.address)
 
-  const WyvernProxyRegistry = await ethers.getContractFactory('WyvernProxyRegistry')
+  const WyvernProxyRegistry = await ethers.getContractFactory(
+    'WyvernProxyRegistry'
+  )
   const wyvernProxyRegistry = await WyvernProxyRegistry.deploy()
   await wyvernProxyRegistry.deployed()
   console.log('wyvernProxyRegistry deployed to:', wyvernProxyRegistry.address)
 
-  const TokenTransferProxy = await ethers.getContractFactory('WyvernTokenTransferProxy')
-  const tokenTransferProxy = await TokenTransferProxy.deploy(wyvernProxyRegistry.address)
+  const TokenTransferProxy = await ethers.getContractFactory(
+    'WyvernTokenTransferProxy'
+  )
+  const tokenTransferProxy = await TokenTransferProxy.deploy(
+    wyvernProxyRegistry.address
+  )
   await tokenTransferProxy.deployed()
   console.log('tokenTransferProxy deployed to:', tokenTransferProxy.address)
 
@@ -94,20 +100,32 @@ async function main() {
   console.log('deployer dddress:', deployer)
   const futureAddress = getContractAddress({ from: deployer, nonce })
   console.log('future contract deployed to:', futureAddress)
-  const _EIP_712_DOMAIN_TYPEHASH = '0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f'
-  const _NAME_HASH = '0x9a2ed463836165738cfa54208ff6e7847fd08cbaac309aac057086cb0a144d13'
-  const _VERSION_HASH = '0xe2fd538c762ee69cab09ccd70e2438075b7004dd87577dc3937e9fcc8174bb64'
-  const _ORDER_TYPEHASH = '0xdba08a88a748f356e8faf8578488343eab21b1741728779c9dcfdc782bc800f8'
+  const _EIP_712_DOMAIN_TYPEHASH =
+    '0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f'
+  const _NAME_HASH =
+    '0x9a2ed463836165738cfa54208ff6e7847fd08cbaac309aac057086cb0a144d13'
+  const _VERSION_HASH =
+    '0xe2fd538c762ee69cab09ccd70e2438075b7004dd87577dc3937e9fcc8174bb64'
+  const _ORDER_TYPEHASH =
+    '0xdba08a88a748f356e8faf8578488343eab21b1741728779c9dcfdc782bc800f8'
   const { chainId: _CHAIN_ID } = await ethers.provider.getNetwork()
 
   const domain_separator = ethers.utils.keccak256(
     ethers.utils.defaultAbiCoder.encode(
       ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address'],
-      [_EIP_712_DOMAIN_TYPEHASH, _NAME_HASH, _VERSION_HASH, _CHAIN_ID, futureAddress]
+      [
+        _EIP_712_DOMAIN_TYPEHASH,
+        _NAME_HASH,
+        _VERSION_HASH,
+        _CHAIN_ID,
+        futureAddress,
+      ]
     )
   )
   console.log('domain_separator:', domain_separator)
-  console.log(`modify domain_separator to ${domain_separator} and chainId to ${_CHAIN_ID} before deploy exchangev2!`)
+  console.log(
+    `modify domain_separator to ${domain_separator} and chainId to ${_CHAIN_ID} before deploy exchangev2!`
+  )
 
   // verify
   await run('verify:verify', {

@@ -7,7 +7,10 @@ pragma solidity ^0.4.13;
 contract Ownable {
     address public owner;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
     /**
      * @dev The Ownable constructor sets the original `owner` of the contract to the sender
@@ -47,7 +50,10 @@ contract ERC20Basic {
 }
 
 contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
+    function allowance(address owner, address spender)
+        public
+        view
+        returns (uint256);
 
     function transferFrom(
         address from,
@@ -57,12 +63,21 @@ contract ERC20 is ERC20Basic {
 
     function approve(address spender, uint256 value) public returns (bool);
 
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 contract TokenRecipient {
     event ReceivedEther(address indexed sender, uint256 amount);
-    event ReceivedTokens(address indexed from, uint256 value, address indexed token, bytes extraData);
+    event ReceivedTokens(
+        address indexed from,
+        uint256 value,
+        address indexed token,
+        bytes extraData
+    );
 
     /**
      * @dev Receive tokens and generate a log event
@@ -99,7 +114,11 @@ contract DelegateProxy is TokenRecipient, Ownable {
      * @param calldata Calldata to send
      * @return Result of the delegatecall (success or failure)
      */
-    function delegateProxy(address dest, bytes calldata) public onlyOwner returns (bool result) {
+    function delegateProxy(address dest, bytes calldata)
+        public
+        onlyOwner
+        returns (bool result)
+    {
         return dest.delegatecall(calldata);
     }
 

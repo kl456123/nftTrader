@@ -145,7 +145,10 @@ contract GemSwap is Ownable, ReentrancyGuard {
         converter = _converter;
     }
 
-    function setMarketRegistry(MarketRegistry _marketRegistry) external onlyOwner {
+    function setMarketRegistry(MarketRegistry _marketRegistry)
+        external
+        onlyOwner
+    {
         marketRegistry = _marketRegistry;
     }
 
@@ -161,7 +164,9 @@ contract GemSwap is Ownable, ReentrancyGuard {
     function _collectFee(uint256[2] memory feeDetails) internal {
         require(feeDetails[1] >= baseFees, 'Insufficient fee');
         if (feeDetails[1] > 0) {
-            AffiliateDetails memory affiliateDetails = affiliates[feeDetails[0]];
+            AffiliateDetails memory affiliateDetails = affiliates[
+                feeDetails[0]
+            ];
             affiliateDetails.isActive
                 ? _transferEth(affiliateDetails.affiliate, feeDetails[1])
                 : _transferEth(GOV, feeDetails[1]);
@@ -186,14 +191,23 @@ contract GemSwap is Ownable, ReentrancyGuard {
         // transfer ERC20 tokens from the sender to this contract
         for (uint256 i = 0; i < erc20Details.tokenAddrs.length; i++) {
             erc20Details.tokenAddrs[i].call(
-                abi.encodeWithSelector(0x23b872dd, msg.sender, address(this), erc20Details.amounts[i])
+                abi.encodeWithSelector(
+                    0x23b872dd,
+                    msg.sender,
+                    address(this),
+                    erc20Details.amounts[i]
+                )
             );
         }
 
         // transfer ERC721 tokens from the sender to this contract
         for (uint256 i = 0; i < erc721Details.length; i++) {
             for (uint256 j = 0; j < erc721Details[i].ids.length; j++) {
-                IERC721(erc721Details[i].tokenAddr).transferFrom(_msgSender(), address(this), erc721Details[i].ids[j]);
+                IERC721(erc721Details[i].tokenAddr).transferFrom(
+                    _msgSender(),
+                    address(this),
+                    erc721Details[i].ids[j]
+                );
             }
         }
 
@@ -209,25 +223,34 @@ contract GemSwap is Ownable, ReentrancyGuard {
         }
     }
 
-    function _conversionHelper(ConverstionDetails[] memory _converstionDetails) internal {
+    function _conversionHelper(ConverstionDetails[] memory _converstionDetails)
+        internal
+    {
         for (uint256 i = 0; i < _converstionDetails.length; i++) {
             // convert to desired asset
-            (bool success, ) = converter.delegatecall(_converstionDetails[i].conversionData);
+            (bool success, ) = converter.delegatecall(
+                _converstionDetails[i].conversionData
+            );
             // check if the call passed successfully
             _checkCallResult(success);
         }
     }
 
-    function _trade(MarketRegistry.TradeDetails[] memory _tradeDetails) internal {
+    function _trade(MarketRegistry.TradeDetails[] memory _tradeDetails)
+        internal
+    {
         for (uint256 i = 0; i < _tradeDetails.length; i++) {
             // get market details
-            (address _proxy, bool _isLib, bool _isActive) = marketRegistry.markets(_tradeDetails[i].marketId);
+            (address _proxy, bool _isLib, bool _isActive) = marketRegistry
+                .markets(_tradeDetails[i].marketId);
             // market should be active
             require(_isActive, '_trade: InActive Market');
             // execute trade
             (bool success, ) = _isLib
                 ? _proxy.delegatecall(_tradeDetails[i].tradeData)
-                : _proxy.call{value: _tradeDetails[i].value}(_tradeDetails[i].tradeData);
+                : _proxy.call{value: _tradeDetails[i].value}(
+                    _tradeDetails[i].tradeData
+                );
             // check if the call passed successfully
             _checkCallResult(success);
         }
@@ -237,14 +260,26 @@ contract GemSwap is Ownable, ReentrancyGuard {
         // return remaining ETH (if any)
         assembly {
             if gt(selfbalance(), 0) {
-                let callStatus := call(gas(), caller(), selfbalance(), 0, 0, 0, 0)
+                let callStatus := call(
+                    gas(),
+                    caller(),
+                    selfbalance(),
+                    0,
+                    0,
+                    0,
+                    0
+                )
             }
         }
         // return remaining tokens (if any)
         for (uint256 i = 0; i < _tokens.length; i++) {
             if (IERC20(_tokens[i]).balanceOf(address(this)) > 0) {
                 _tokens[i].call(
-                    abi.encodeWithSelector(0xa9059cbb, msg.sender, IERC20(_tokens[i]).balanceOf(address(this)))
+                    abi.encodeWithSelector(
+                        0xa9059cbb,
+                        msg.sender,
+                        IERC20(_tokens[i]).balanceOf(address(this))
+                    )
                 );
             }
         }
@@ -312,7 +347,12 @@ contract GemSwap is Ownable, ReentrancyGuard {
         return 0xf0b9e5ba;
     }
 
-    function supportsInterface(bytes4 interfaceId) external view virtual returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        external
+        view
+        virtual
+        returns (bool)
+    {
         return interfaceId == this.supportsInterface.selector;
     }
 
@@ -327,7 +367,13 @@ contract GemSwap is Ownable, ReentrancyGuard {
     // Emergency function: In case any ERC20 tokens get stuck in the contract unintentionally
     // Only owner can retrieve the asset balance to a recipient address
     function rescueERC20(address asset, address recipient) external onlyOwner {
-        asset.call(abi.encodeWithSelector(0xa9059cbb, recipient, IERC20(asset).balanceOf(address(this))));
+        asset.call(
+            abi.encodeWithSelector(
+                0xa9059cbb,
+                recipient,
+                IERC20(asset).balanceOf(address(this))
+            )
+        );
     }
 
     // Emergency function: In case any ERC721 tokens get stuck in the contract unintentionally
@@ -351,7 +397,13 @@ contract GemSwap is Ownable, ReentrancyGuard {
         address recipient
     ) external onlyOwner {
         for (uint256 i = 0; i < ids.length; i++) {
-            IERC1155(asset).safeTransferFrom(address(this), recipient, ids[i], amounts[i], '');
+            IERC1155(asset).safeTransferFrom(
+                address(this),
+                recipient,
+                ids[i],
+                amounts[i],
+                ''
+            );
         }
     }
 }

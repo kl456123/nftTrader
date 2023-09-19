@@ -114,7 +114,10 @@ contract BasicToken is ERC20Basic {
 }
 
 contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
+    function allowance(address owner, address spender)
+        public
+        view
+        returns (uint256);
 
     function transferFrom(
         address from,
@@ -124,7 +127,11 @@ contract ERC20 is ERC20Basic {
 
     function approve(address spender, uint256 value) public returns (bool);
 
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 contract StandardToken is ERC20, BasicToken {
@@ -174,7 +181,11 @@ contract StandardToken is ERC20, BasicToken {
      * @param _spender address The address which will spend the funds.
      * @return A uint256 specifying the amount of tokens still available for the spender.
      */
-    function allowance(address _owner, address _spender) public view returns (uint256) {
+    function allowance(address _owner, address _spender)
+        public
+        view
+        returns (uint256)
+    {
         return allowed[_owner][_spender];
     }
 
@@ -184,13 +195,21 @@ contract StandardToken is ERC20, BasicToken {
      * the first transaction is mined)
      * From MonolithDAO Token.sol
      */
-    function increaseApproval(address _spender, uint256 _addedValue) public returns (bool) {
-        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
+    function increaseApproval(address _spender, uint256 _addedValue)
+        public
+        returns (bool)
+    {
+        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(
+            _addedValue
+        );
         Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
     }
 
-    function decreaseApproval(address _spender, uint256 _subtractedValue) public returns (bool) {
+    function decreaseApproval(address _spender, uint256 _subtractedValue)
+        public
+        returns (bool)
+    {
         uint256 oldValue = allowed[msg.sender][_spender];
         if (_subtractedValue > oldValue) {
             allowed[msg.sender][_spender] = 0;
@@ -284,10 +303,16 @@ contract UTXORedeemableToken is StandardToken {
      * @param pos Starting position from which to copy
      * @return Extracted length 32 byte array
      */
-    function extract(bytes data, uint256 pos) private pure returns (bytes32 result) {
+    function extract(bytes data, uint256 pos)
+        private
+        pure
+        returns (bytes32 result)
+    {
         for (uint256 i = 0; i < 32; i++) {
             result ^=
-                (bytes32(0xff00000000000000000000000000000000000000000000000000000000000000) & data[i + pos]) >>
+                (bytes32(
+                    0xff00000000000000000000000000000000000000000000000000000000000000
+                ) & data[i + pos]) >>
                 (i * 8);
         }
         return result;
@@ -328,7 +353,14 @@ contract UTXORedeemableToken is StandardToken {
         bytes32 r,
         bytes32 s
     ) public pure returns (bool) {
-        return validateSignature(sha256(addr), v, r, s, pubKeyToEthereumAddress(pubKey));
+        return
+            validateSignature(
+                sha256(addr),
+                v,
+                r,
+                s,
+                pubKeyToEthereumAddress(pubKey)
+            );
     }
 
     /**
@@ -336,8 +368,16 @@ contract UTXORedeemableToken is StandardToken {
      * @param pubKey Uncompressed ECDSA public key to convert
      * @return Ethereum address generated from the ECDSA public key
      */
-    function pubKeyToEthereumAddress(bytes pubKey) public pure returns (address) {
-        return address(uint256(keccak256(pubKey)) & 0x000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+    function pubKeyToEthereumAddress(bytes pubKey)
+        public
+        pure
+        returns (address)
+    {
+        return
+            address(
+                uint256(keccak256(pubKey)) &
+                    0x000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            );
     }
 
     /**
@@ -346,7 +386,11 @@ contract UTXORedeemableToken is StandardToken {
      * @param isCompressed Whether or not the Bitcoin address was generated from a compressed key
      * @return Raw Bitcoin address (no base58-check encoding)
      */
-    function pubKeyToBitcoinAddress(bytes pubKey, bool isCompressed) public pure returns (bytes20) {
+    function pubKeyToBitcoinAddress(bytes pubKey, bool isCompressed)
+        public
+        pure
+        returns (bytes20)
+    {
         /* Helpful references:
            - https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses 
            - https://github.com/cryptocoinjs/ecurve/blob/master/lib/point.js
@@ -374,8 +418,17 @@ contract UTXORedeemableToken is StandardToken {
      * @param merkleLeafHash Hash asserted to be present in the Merkle tree
      * @return Whether or not the proof is valid
      */
-    function verifyProof(bytes proof, bytes32 merkleLeafHash) public constant returns (bool) {
-        return MerkleProof.verifyProof(proof, rootUTXOMerkleTreeHash, merkleLeafHash);
+    function verifyProof(bytes proof, bytes32 merkleLeafHash)
+        public
+        constant
+        returns (bool)
+    {
+        return
+            MerkleProof.verifyProof(
+                proof,
+                rootUTXOMerkleTreeHash,
+                merkleLeafHash
+            );
     }
 
     /**
@@ -395,7 +448,12 @@ contract UTXORedeemableToken is StandardToken {
         bytes proof
     ) public constant returns (bool) {
         /* Calculate the hash of the Merkle leaf associated with this UTXO. */
-        bytes32 merkleLeafHash = keccak256(txid, originalAddress, outputIndex, satoshis);
+        bytes32 merkleLeafHash = keccak256(
+            txid,
+            originalAddress,
+            outputIndex,
+            satoshis
+        );
 
         /* Verify the proof. */
         return canRedeemUTXOHash(merkleLeafHash, proof);
@@ -407,9 +465,14 @@ contract UTXORedeemableToken is StandardToken {
      * @param proof Merkle tree proof
      * @return Whether or not the UTXO with the specified hash can be redeemed
      */
-    function canRedeemUTXOHash(bytes32 merkleLeafHash, bytes proof) public constant returns (bool) {
+    function canRedeemUTXOHash(bytes32 merkleLeafHash, bytes proof)
+        public
+        constant
+        returns (bool)
+    {
         /* Check that the UTXO has not yet been redeemed and that it exists in the Merkle tree. */
-        return ((redeemedUTXOs[merkleLeafHash] == false) && verifyProof(proof, merkleLeafHash));
+        return ((redeemedUTXOs[merkleLeafHash] == false) &&
+            verifyProof(proof, merkleLeafHash));
     }
 
     /**
@@ -440,7 +503,12 @@ contract UTXORedeemableToken is StandardToken {
         bytes20 originalAddress = pubKeyToBitcoinAddress(pubKey, isCompressed);
 
         /* Calculate the UTXO Merkle leaf hash. */
-        bytes32 merkleLeafHash = keccak256(txid, originalAddress, outputIndex, satoshis);
+        bytes32 merkleLeafHash = keccak256(
+            txid,
+            originalAddress,
+            outputIndex,
+            satoshis
+        );
 
         /* Verify that the UTXO can be redeemed. */
         require(canRedeemUTXOHash(merkleLeafHash, proof));
@@ -461,20 +529,38 @@ contract UTXORedeemableToken is StandardToken {
         require(totalRedeemed <= maximumRedeemable);
 
         /* Credit the redeemer. */
-        balances[msg.sender] = SafeMath.add(balances[msg.sender], tokensRedeemed);
+        balances[msg.sender] = SafeMath.add(
+            balances[msg.sender],
+            tokensRedeemed
+        );
 
         /* Mark the transfer event. */
         Transfer(address(0), msg.sender, tokensRedeemed);
 
         /* Mark the UTXO redemption event. */
-        UTXORedeemed(txid, outputIndex, satoshis, proof, pubKey, v, r, s, msg.sender, tokensRedeemed);
+        UTXORedeemed(
+            txid,
+            outputIndex,
+            satoshis,
+            proof,
+            pubKey,
+            v,
+            r,
+            s,
+            msg.sender,
+            tokensRedeemed
+        );
 
         /* Return the number of tokens redeemed. */
         return tokensRedeemed;
     }
 }
 
-contract WyvernToken is DelayedReleaseToken, UTXORedeemableToken, BurnableToken {
+contract WyvernToken is
+    DelayedReleaseToken,
+    UTXORedeemableToken,
+    BurnableToken
+{
     uint256 public constant decimals = 18;
     string public constant name = 'Project Wyvern Token';
     string public constant symbol = 'WYV';
@@ -483,7 +569,8 @@ contract WyvernToken is DelayedReleaseToken, UTXORedeemableToken, BurnableToken 
     uint256 public constant MULTIPLIER = 1;
 
     /* Constant for conversion from satoshis to tokens. */
-    uint256 public constant SATS_TO_TOKENS = (MULTIPLIER * (10**decimals)) / (10**8);
+    uint256 public constant SATS_TO_TOKENS =
+        (MULTIPLIER * (10**decimals)) / (10**8);
 
     /* Total mint amount, in tokens (will be reached when all UTXOs are redeemed). */
     uint256 public constant MINT_AMOUNT = 2000000 * MULTIPLIER * (10**decimals);

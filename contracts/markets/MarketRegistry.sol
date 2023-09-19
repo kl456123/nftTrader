@@ -29,7 +29,10 @@ contract MarketRegistry is Ownable {
         markets.push(Market(proxy, isLib, true));
     }
 
-    function setMarketStatus(uint256 marketId, bool newStatus) external onlyOwner {
+    function setMarketStatus(uint256 marketId, bool newStatus)
+        external
+        onlyOwner
+    {
         Market storage market = markets[marketId];
         market.isActive = newStatus;
     }

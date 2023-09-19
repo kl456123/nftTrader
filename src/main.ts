@@ -8,16 +8,28 @@ import { WETH_ADDRESS, ETH_ADDRESS } from './constants'
 
 dotenv.config()
 
-async function initEnv(nftAddress: string, tokenId: number, signer: ethers.Signer, otherAddress: string) {
+async function initEnv(
+  nftAddress: string,
+  tokenId: number,
+  signer: ethers.Signer,
+  otherAddress: string
+) {
   const mockNFT = MockNFT__factory.connect(nftAddress, signer)
   await mockNFT.mint(otherAddress)
   const owner = await mockNFT.ownerOf(tokenId)
   if (owner.toLowerCase() !== otherAddress.toLowerCase()) {
-    throw new Error(`nft of ${tokenId}'s owner is not ${otherAddress} but ${owner}`)
+    throw new Error(
+      `nft of ${tokenId}'s owner is not ${otherAddress} but ${owner}`
+    )
   }
 }
 
-async function fulfillOrders(trader: Trader, deployer: ethers.Signer, seller: string, buyer: string) {
+async function fulfillOrders(
+  trader: Trader,
+  deployer: ethers.Signer,
+  seller: string,
+  buyer: string
+) {
   const NFT_CONTRACT_ADDRESS = '0x43BB99CC6EdfA45181295Cce4528F08f54C58aa4'
   const mockTokenAddress = '0x8b5947506A87276dD0c17f9c6cD3FAc5DD06Fba7'
   const expirationTime = Math.round(Date.now() / 1000 + 60 * 60 * 24) // one day
@@ -48,7 +60,12 @@ async function fulfillOrders(trader: Trader, deployer: ethers.Signer, seller: st
   })
 }
 
-async function fulfillOrder(trader: Trader, deployer: ethers.Signer, seller: string, buyer: string) {
+async function fulfillOrder(
+  trader: Trader,
+  deployer: ethers.Signer,
+  seller: string,
+  buyer: string
+) {
   const NFT_CONTRACT_ADDRESS = '0x43BB99CC6EdfA45181295Cce4528F08f54C58aa4'
   const NFT_TOKEN_ID = 3
   const expirationTime = Math.round(Date.now() / 1000 + 60 * 60 * 24) // one day
@@ -67,7 +84,10 @@ async function fulfillOrder(trader: Trader, deployer: ethers.Signer, seller: str
     expirationTime,
     accountAddress: seller,
   })
-  const txHash = await trader.fulfillOrder({ order: sellOrder, accountAddress: buyer })
+  const txHash = await trader.fulfillOrder({
+    order: sellOrder,
+    accountAddress: buyer,
+  })
 }
 
 async function main() {
@@ -78,7 +98,10 @@ async function main() {
     process.env.BOB_PASSWD,
     process.env.RINKEBY_PRIVATE_KEY,
   ] as string[])
-  const deployer = new ethers.Wallet(process.env.RINKEBY_PRIVATE_KEY as string, provider)
+  const deployer = new ethers.Wallet(
+    process.env.RINKEBY_PRIVATE_KEY as string,
+    provider
+  )
   const seller = process.env.ALICE_ADDR as string
   const buyer = process.env.BOB_ADDR as string
 
